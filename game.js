@@ -17,6 +17,8 @@ const minSceneHeight = floorHeight - pointRadius; // 565
 const minSceneMaxHeight = minSceneHeight - maxSceneHeght; // 440
 
 const dx = 2;
+
+let interval = 0
 const gameLength = 60_000;
 
 const throttle = (callback, delay) => {
@@ -377,11 +379,22 @@ const UI = {
     if (state.startGameTime && state.startGameTime + gameLength < Date.now()) {
       state.currentGameStep = state.finalScreenGameStep
 
+      clearInterval(interval)
+
+      const searchParams = new URLSearchParams(window.location.search);
+      const id = searchParams.get("UUID");
+      if (id) {
+        dbFunctions.set(dbFunctions.ref(db, id), {
+          result: JSON.stringify(state),
+        })
+      }
+
       setTimeout(() => {
+        document.getElementsByClassName('final')[0].style.display = 'block'
         const gameScreen = document.getElementById("canvas")
         const finalScreen = document.getElementById("finalScreen")
-        gameScreen.classList.add("visible");
-        gameScreen.classList.remove("notVisible");
+        gameScreen.classList.add("notVisible");
+        gameScreen.classList.remove("visible");
         finalScreen.classList.add("visible");
         finalScreen.classList.remove("notVisible");
 
@@ -427,7 +440,7 @@ const runGame = () => {
   UI.tap[0].sprite.src = "img/tap1.png";
   UI.tap[1].sprite.src = "img/tap2.png";
 
-  setInterval(gameLoop, 20);
+  interval = setInterval(gameLoop, 20);
 };
 
 runGame();

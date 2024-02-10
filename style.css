@@ -36,6 +36,7 @@ hr {
 
 .finalScreen {
     width: 1000px;
+    display: none;
 }
 
 .notVisible {
