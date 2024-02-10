@@ -19,6 +19,7 @@ const minSceneMaxHeight = minSceneHeight - maxSceneHeght; // 440
 const dx = 2;
 
 let interval = 0
+const gameLength = 60_000;
 
 const throttle = (callback, delay) => {
   let shouldWait = false;
@@ -122,7 +123,7 @@ const setLeftTimerValue = throttle(
 const drawProducedScore = () => {
   setTextStyles(false);
   sctx.textAlign = "right";
-  sctx.fillText(state.scoreProduced + "$", scrn.width - 150, 40);
+  sctx.fillText(state.scoreProduced + "¢", scrn.width - 150, 40);
   sctx.textAlign = "left";
   sctx.fillStyle = colors.textGray;
   sctx.fillText("produced", scrn.width - 140, 40);
@@ -130,7 +131,7 @@ const drawProducedScore = () => {
 const drawTaxed = () => {
   setTextStyles(false);
   sctx.textAlign = "right";
-  sctx.fillText(state.scoreTaxed + "$", scrn.width - 150, 70);
+  sctx.fillText(state.scoreTaxed + "¢", scrn.width - 150, 70);
   sctx.fillStyle = colors.textGray;
   sctx.textAlign = "left";
   sctx.fillText("taxed", scrn.width - 140, 70);
@@ -139,7 +140,7 @@ const drawTaxed = () => {
 const drawProfitScore = () => {
   setTextStyles(false);
   sctx.textAlign = "right";
-  sctx.fillText(state.scoreProduced + state.scoreTaxed + "$", 500, 40);
+  sctx.fillText(state.scoreProduced + state.scoreTaxed + "¢", 500, 40);
   sctx.textAlign = "left";
   sctx.fillStyle = colors.textGray;
   sctx.fillText("profit", 510, 40);
@@ -147,7 +148,7 @@ const drawProfitScore = () => {
 const drawProfitPerSecond = () => {
   setTextStyles(false);
   sctx.textAlign = "right";
-  sctx.fillText(state.scorePerSecond - state.taxPerSecond + "$", 500, 70);
+  sctx.fillText(state.scorePerSecond - state.taxPerSecond + "¢", 500, 70);
   sctx.textAlign = "left";
   sctx.fillStyle = colors.textGray;
   sctx.fillText("profit /s", 510, 70);
@@ -222,22 +223,20 @@ scrn.addEventListener("click", () => {
 });
 
 const tax = {
-  // gap: 85,
   moving: true,
   taxes: [],
   draw: function () {
-    for (let i = 0; i < this.taxes.length; i++) {
-      const tax = this.taxes[i];
-
-      sctx.fillStyle = "#E9AAAA";
+    for (let tax of this.taxes) {
+      sctx.fillStyle = "rgba(233, 170, 170, 0.3)";
       const taxWidth = sceneWidth - tax.x;
       const taxHeight = getYByScorePerSecond(0) - getYByScorePerSecond(tax.taxRate);
       sctx.fillRect(tax.x, tax.y, taxWidth, taxHeight);
       if (tax.x < 900) {
         sctx.fillStyle = "red";
-        sctx.fillText(`${tax.taxRate} $`, 940, tax.y + 30);
+        sctx.fillText(`${tax.taxRate} ¢`, 940, tax.y + 30);
       }
     }
+
     if (state.currentGameStep != state.playGameStep) return;
 
     if (frames > 200 == 0 && this.taxes.length === 0) {
@@ -247,9 +246,7 @@ const tax = {
         taxRate: 30
       });
     }
-    this.taxes.forEach((taxe) => {
-      taxe.x -= dx;
-    });
+    this.taxes.forEach((taxe) => taxe.x -= dx);
   },
 };
 
@@ -332,7 +329,6 @@ const point = {
     setLeftTimerValue()
     setTaxPerSecond(tax.taxes[0].taxRate)
     if (!state.startGameTime) state.startGameTime = Date.now();
-    console.log("state: ", state)
   }
 };
 
@@ -379,7 +375,8 @@ const UI = {
     drawTimer();
   },
   update: function () {
-    if (state.startGameTime && state.startGameTime + 60000 < Date.now()) {
+    if (state.currentGameStep === state.finalScreenGameStep) return
+    if (state.startGameTime && state.startGameTime + gameLength < Date.now()) {
       state.currentGameStep = state.finalScreenGameStep
 
       clearInterval(interval)
@@ -394,7 +391,17 @@ const UI = {
 
       setTimeout(() => {
         document.getElementsByClassName('final')[0].style.display = 'block'
-      }, 500)
+        const gameScreen = document.getElementById("canvas")
+        const finalScreen = document.getElementById("finalScreen")
+        gameScreen.classList.add("notVisible");
+        gameScreen.classList.remove("visible");
+        finalScreen.classList.add("visible");
+        finalScreen.classList.remove("notVisible");
+
+        console.group("Game results");
+        console.table(state);
+        console.groupEnd("Game results");
+      }, 2000)
     }
 
     if (state.currentGameStep === state.playGameStep) return;
@@ -408,6 +415,7 @@ function draw() {
   sctx.fillRect(0, 0, scrn.width, scrn.height);
   tax.draw();
   drawDashedLine(floorHeight, sceneX);
+  drawDashedLine(siblingHeight, sceneX);
 
   point.draw();
   UI.draw();
@@ -423,6 +431,7 @@ function gameLoop() {
   draw();
   update();
   frames++;
+  if (state.currentGameStep !== state.finalScreenGameStep) console.log("state: ", state)
 }
 
 const runGame = () => {
