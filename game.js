@@ -282,7 +282,7 @@ const point = {
     const floorPointIntersection = bottomOfThePoint > floorHeight;
     const topOfThePoint = this.y - pointRadius;
 
-    this.speed += this.gravity;
+    this.speed += (this.gravity * (2 * getScorePerSecondByY(this.y) / 100));
 
     if (!floorPointIntersection) {
       const isNextYLowerThenFloor = bottomOfThePoint + this.speed > floorHeight;
@@ -317,7 +317,7 @@ const point = {
   },
   flap: function () {
     if (this.y < 0) return;
-    let thrust = 5 - Math.log1p(state.scorePerSecond / 1.5 || 1);
+    let thrust = 5.31 - Math.log1p(state.scorePerSecond / 1.5 || 1);
     this.speed = -thrust;
     if (state.startGameTime) state.tapsCounts += 1
     results.flaps.push(Date.now());
