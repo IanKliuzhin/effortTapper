@@ -17,9 +17,8 @@ const minSceneHeight = floorHeight - pointRadius; // 565
 const minSceneMaxHeight = minSceneHeight - maxSceneHeght; // 440
 
 const dx = 2;
-
-let interval = 0
 const gameLength = 60_000;
+let gameInterval = 0;
 
 const throttle = (callback, delay) => {
   let shouldWait = false;
@@ -375,11 +374,8 @@ const UI = {
     drawTimer();
   },
   update: function () {
-    if (state.currentGameStep === state.finalScreenGameStep) return
-    if (state.startGameTime && state.startGameTime + gameLength < Date.now()) {
-      state.currentGameStep = state.finalScreenGameStep
-
-      clearInterval(interval)
+    if (state.currentGameStep === state.finalScreenGameStep) {
+      clearInterval(gameInterval);
 
       const searchParams = new URLSearchParams(window.location.search);
       const id = searchParams.get("UUID");
@@ -390,18 +386,18 @@ const UI = {
       }
 
       setTimeout(() => {
-        document.getElementsByClassName('final')[0].style.display = 'block'
         const gameScreen = document.getElementById("canvas")
-        const finalScreen = document.getElementById("finalScreen")
+        const finalScreen = document.getElementById("final")
+        finalScreen.style.display = 'block'
         gameScreen.classList.add("notVisible");
         gameScreen.classList.remove("visible");
         finalScreen.classList.add("visible");
         finalScreen.classList.remove("notVisible");
+      }, 750)
+    }
 
-        console.group("Game results");
-        console.table(state);
-        console.groupEnd("Game results");
-      }, 2000)
+    if (state.startGameTime && state.startGameTime + gameLength < Date.now()) {
+      state.currentGameStep = state.finalScreenGameStep
     }
 
     if (state.currentGameStep === state.playGameStep) return;
@@ -431,7 +427,6 @@ function gameLoop() {
   draw();
   update();
   frames++;
-  if (state.currentGameStep !== state.finalScreenGameStep) console.log("state: ", state)
 }
 
 const runGame = () => {
@@ -440,7 +435,7 @@ const runGame = () => {
   UI.tap[0].sprite.src = "img/tap1.png";
   UI.tap[1].sprite.src = "img/tap2.png";
 
-  interval = setInterval(gameLoop, 20);
+  gameInterval = setInterval(gameLoop, 20);
 };
 
 runGame();
