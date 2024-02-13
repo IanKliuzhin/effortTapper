@@ -1,3 +1,6 @@
+const searchParams = new URLSearchParams(window.location.search);
+const taxRate = Number(searchParams.get('tax'));
+
 const RAD = Math.PI / 180;
 const scrn = document.getElementById("canvas");
 const sctx = scrn.getContext("2d");
@@ -104,7 +107,7 @@ const increaseScoreProduced = throttle(
   1000
 );
 const decreaseScoreTaxed = throttle(
-  () => (state.scoreTaxed -= 30),
+  () => (state.scoreTaxed -= taxRate),
   1000
 );
 const setTaxPerSecond = throttle(
@@ -232,7 +235,7 @@ const tax = {
       sctx.fillRect(tax.x, tax.y, taxWidth, taxHeight);
       if (tax.x < 900) {
         sctx.fillStyle = "red";
-        sctx.fillText(`${tax.taxRate} ¢`, 940, tax.y + 30);
+        sctx.fillText(`${tax.taxRate} ¢`, 940, tax.y + taxRate);
       }
     }
 
@@ -241,8 +244,8 @@ const tax = {
     if (frames > 200 == 0 && this.taxes.length === 0) {
       this.taxes.push({
         x: sceneWidth,
-        y: getYByScorePerSecond(30),
-        taxRate: 30
+        y: getYByScorePerSecond(taxRate),
+        taxRate
       });
     }
     this.taxes.forEach((taxe) => taxe.x -= dx);
