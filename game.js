@@ -54,6 +54,15 @@ const state = {
   tapsCounts: 0
 };
 
+const results = {
+  scoresBySeconds: [],
+  flaps: [],
+  taxesBySeconds: [],
+  produced: 0,
+  taxed: 0,
+  profit: 0,
+}
+
 const colors = {
   textGray: "#A2A2A2",
   pointColor: "#DCDCDC",
@@ -121,6 +130,11 @@ const setLeftTimerValue = throttle(
   },
   1000
 );
+
+const saveResults = throttle(() => {
+  results.scoresBySeconds.push(state.scorePerSecond);
+  results.taxesBySeconds.push(-state.taxPerSecond);
+}, 1000)
 
 const drawProducedScore = () => {
   setTextStyles(false);
@@ -306,6 +320,7 @@ const point = {
     let thrust = 5 - Math.log1p(state.scorePerSecond / 1.5 || 1);
     this.speed = -thrust;
     if (state.startGameTime) state.tapsCounts += 1
+    results.flaps.push(Date.now());
   },
   drawDashedCrosshair: function (y, x) {
     sctx.lineDashOffset = 0;
@@ -331,6 +346,7 @@ const point = {
     setLeftTimerValue()
     setTaxPerSecond(tax.taxes[0].taxRate)
     if (!state.startGameTime) state.startGameTime = Date.now();
+    saveResults();
   }
 };
 
@@ -379,12 +395,22 @@ const UI = {
   update: function () {
     if (state.currentGameStep === state.finalScreenGameStep) {
       clearInterval(gameInterval);
+      results.produced = state.scoreProduced
+      results.taxed = state.scoreTaxed
+      results.profit = state.scoreProduced + state.scoreTaxed
+      results.flaps = results.flaps.map((flap) => {
+        const isBeforeStart = flap < state.startGameTime
+        const time = new Date(isBeforeStart ? state.startGameTime - flap : flap - state.startGameTime)
+        return `${isBeforeStart ? '-' : ''}${time.getSeconds()}.${time.getMilliseconds()}`
+      }).join(', ')
+      results.scoresBySeconds = results.scoresBySeconds.join(', ')
+      results.taxesBySeconds = results.taxesBySeconds.join(', ')
 
       const searchParams = new URLSearchParams(window.location.search);
       const id = searchParams.get("UUID");
       if (id) {
         dbFunctions.set(dbFunctions.ref(db, id), {
-          result: JSON.stringify(state),
+          ...results,
         })
       }
 
