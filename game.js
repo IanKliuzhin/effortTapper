@@ -1,7 +1,6 @@
 const searchParams = new URLSearchParams(window.location.search);
 const taxRate = Number(searchParams.get('tax'));
 
-const RAD = Math.PI / 180;
 const scrn = document.getElementById("canvas");
 const sctx = scrn.getContext("2d");
 scrn.tabIndex = 1;
@@ -39,6 +38,92 @@ let frames = 0;
 let sceneX = 0;
 let coordsHistory = [];
 
+class Drawer {
+  colors = {
+    textGray: "#A2A2A2",
+    pointColor: "#DCDCDC",
+    lineGray: "#CCCCCC"
+  }
+  lineWidth_1 = 1;
+  lineWidth_2 = 2;
+  h1Font = "700 28px courier";
+  h2Font = "400 22px Tahoma";
+
+  setTextStyles = (h1 = true) => {
+    sctx.font = h1 ? this.h1Font : this.h2Font;
+    sctx.setLineDash([]);
+    sctx.fillStyle = "black";
+    sctx.strokeStyle = "black";
+  };
+  
+  drawPoint = (x, y) => {
+    sctx.fillStyle = this.colors.pointColor;
+    sctx.beginPath();
+    sctx.arc(x, y, pointRadius, 0, 2 * Math.PI);
+    sctx.fill();
+  };
+
+  drawDashedLine = (y, x) => {
+    sctx.lineDashOffset = -x;
+    sctx.lineWidth = this.lineWidth_1;
+    sctx.beginPath();
+    sctx.setLineDash([15, 15]);
+    sctx.moveTo(0, y);
+    sctx.lineTo(sceneWidth, y);
+    sctx.strokeStyle = this.colors.lineGray;
+    sctx.stroke();
+  };
+
+  drawLine = (last200Coords) => {
+    sctx.setLineDash([]);
+    sctx.lineWidth = this.lineWidth_2;
+    sctx.beginPath();
+    if (last200Coords.length < 2) return;
+    for (let i = 0; i < last200Coords.length - 1; i++) {
+      const lastPoint = last200Coords[i];
+      const firstPoint = last200Coords[i + 1];
+  
+      const x_mid = (lastPoint.x + firstPoint.x) / 2;
+      const y_mid = (lastPoint.y + firstPoint.y) / 2;
+      const cp_x = (x_mid + lastPoint.x) / 2;
+      const cp_y = (y_mid + lastPoint.y) / 2;
+  
+      sctx.quadraticCurveTo(cp_x, cp_y, x_mid, y_mid);
+    }
+    // const isTaxIntersection = firstPoint.x < tax.taxes[0].x && firstPoint.y > tax.taxes[0].y;
+    // sctx.strokeStyle = isTaxIntersection ? "red" : "black";
+  
+    // const gradient = sctx.createLinearGradient(tax.taxes[0].x, siblingHeight, floorHeight, 500);
+    // gradient.addColorStop(0, "black");
+    // gradient.addColorStop(0.6, "black");
+    // gradient.addColorStop(0.8, "red");
+    // gradient.addColorStop(1, "red");
+  
+    // sctx.strokeStyle = pointXCoord < tax.taxes[0].x ? "black" : gradient;
+    sctx.strokeStyle = "black";
+    sctx.stroke();
+    // sctx.save();
+  };
+
+  drawDashedCrosshair = (y, x) => {
+    sctx.lineDashOffset = 0;
+    sctx.beginPath();
+    sctx.setLineDash([15, 15]);
+
+    sctx.moveTo(this.x, 0);
+    sctx.lineTo(this.x, frmaeHeight);
+
+    sctx.moveTo(0, this.y);
+    sctx.lineTo(sceneWidth, this.y);
+
+    sctx.strokeStyle = this.colors.lineGray;
+    sctx.stroke();
+    // sctx.save();
+  };
+}
+
+const drawer = new Drawer();
+
 const state = {
   currentGameStep: 0,
   indexGameStep: 0,
@@ -63,32 +148,6 @@ const results = {
   profit: 0,
 }
 
-const colors = {
-  textGray: "#A2A2A2",
-  pointColor: "#DCDCDC",
-  lineGray: "#CCCCCC"
-}
-const lineWidth_0_5 = 0.5;
-const lineWidth_1 = 1;
-const lineWidth_2 = 2;
-const lineWidth_8 = 8;
-const h1Font = "700 28px courier";
-const h2Font = "400 22px Tahoma";
-
-const setTextStyles = (h1 = true) => {
-  sctx.font = h1 ? h1Font : h2Font;
-  sctx.setLineDash([]);
-  sctx.fillStyle = "black";
-  sctx.strokeStyle = "black";
-};
-
-const drawPoint = (x, y) => {
-  sctx.fillStyle = colors.pointColor;
-  sctx.beginPath();
-  sctx.arc(x, y, pointRadius, 0, 2 * Math.PI);
-  sctx.fill();
-};
-
 const getScorePerSecondByY = (y) => {
   const result = Math.abs(
     Math.floor((100 * (y - minSceneHeight)) / minSceneMaxHeight)
@@ -102,7 +161,7 @@ const getYByScorePerSecond = (score) => {
 };
 
 const drawHeightOfPoint = (x, y) => {
-  setTextStyles(true);
+  drawer.setTextStyles(true);
 
   let scorePerSecond = getScorePerSecondByY(y);
   sctx.textAlign = "left";
@@ -137,88 +196,46 @@ const saveResults = throttle(() => {
 }, 1000)
 
 const drawProducedScore = () => {
-  setTextStyles(false);
+  drawer.setTextStyles(false);
   sctx.textAlign = "right";
   sctx.fillText(state.scoreProduced + "¢", scrn.width - 150, 40);
   sctx.textAlign = "left";
-  sctx.fillStyle = colors.textGray;
+  sctx.fillStyle = drawer.colors.textGray;
   sctx.fillText("produced", scrn.width - 140, 40);
 };
 const drawTaxed = () => {
-  setTextStyles(false);
+  drawer.setTextStyles(false);
   sctx.textAlign = "right";
   sctx.fillText(state.scoreTaxed + "¢", scrn.width - 150, 70);
-  sctx.fillStyle = colors.textGray;
+  sctx.fillStyle = drawer.colors.textGray;
   sctx.textAlign = "left";
   sctx.fillText("taxed", scrn.width - 140, 70);
 };
 
 const drawProfitScore = () => {
-  setTextStyles(false);
+  drawer.setTextStyles(false);
   sctx.textAlign = "right";
   sctx.fillText(state.scoreProduced + state.scoreTaxed + "¢", 500, 40);
   sctx.textAlign = "left";
-  sctx.fillStyle = colors.textGray;
+  sctx.fillStyle = drawer.colors.textGray;
   sctx.fillText("profit", 510, 40);
 };
 const drawProfitPerSecond = () => {
-  setTextStyles(false);
+  drawer.setTextStyles(false);
   sctx.textAlign = "right";
   sctx.fillText(state.scorePerSecond - state.taxPerSecond + "¢", 500, 70);
   sctx.textAlign = "left";
-  sctx.fillStyle = colors.textGray;
+  sctx.fillStyle = drawer.colors.textGray;
   sctx.fillText("profit /s", 510, 70);
 };
 const drawTimer = () => {
   if (!state.leftTimerValue) setLeftTimerValue()
-  setTextStyles(false);
+  drawer.setTextStyles(false);
   sctx.textAlign = "right";
   sctx.fillText(state.leftTimerValue?.toLocaleTimeString("en-GB") + " /", 200, 70);
   sctx.textAlign = "left";
   const rightTimer = new Date(2000, 0, 0, 1, 0, 0).toLocaleTimeString("en-GB")
   sctx.fillText(rightTimer, 208, 70);
-};
-
-const drawLine = (last200Coords) => {
-  sctx.setLineDash([]);
-  sctx.lineWidth = lineWidth_2;
-  sctx.beginPath();
-  if (last200Coords.length < 2) return;
-  for (let i = 0; i < last200Coords.length - 1; i++) {
-    const lastPoint = last200Coords[i];
-    const firstPoint = last200Coords[i + 1];
-
-    const x_mid = (lastPoint.x + firstPoint.x) / 2;
-    const y_mid = (lastPoint.y + firstPoint.y) / 2;
-    const cp_x = (x_mid + lastPoint.x) / 2;
-    const cp_y = (y_mid + lastPoint.y) / 2;
-
-    sctx.quadraticCurveTo(cp_x, cp_y, x_mid, y_mid);
-  }
-  // const isTaxIntersection = firstPoint.x < tax.taxes[0].x && firstPoint.y > tax.taxes[0].y;
-  // sctx.strokeStyle = isTaxIntersection ? "red" : "black";
-
-  // const gradient = sctx.createLinearGradient(tax.taxes[0].x, siblingHeight, floorHeight, 500);
-  // gradient.addColorStop(0, "black");
-  // gradient.addColorStop(0.6, "black");
-  // gradient.addColorStop(0.8, "red");
-  // gradient.addColorStop(1, "red");
-
-  // sctx.strokeStyle = pointXCoord < tax.taxes[0].x ? "black" : gradient;
-  sctx.strokeStyle = "black";
-  sctx.stroke();
-  // sctx.save();
-};
-
-const drawDashedLine = (y, x) => {
-  sctx.lineDashOffset = -x;
-  sctx.lineWidth = lineWidth_1;
-  sctx.beginPath();
-  sctx.setLineDash([15, 15]);
-  sctx.moveTo(0, y);
-  sctx.lineTo(sceneWidth, y);
-  sctx.strokeStyle = colors.lineGray;
-  sctx.stroke();
 };
 
 scrn.addEventListener("click", () => {
@@ -274,7 +291,7 @@ const point = {
   frame: 0,
   draw: function () {
     if (state.currentGameStep !== state.playGameStep) {
-      drawPoint(this.x, this.y);
+      drawer.drawPoint(this.x, this.y);
       return;
     }
 
@@ -306,10 +323,10 @@ const point = {
     const data = { x: this.x, y: this.y, date: Date.now() };
     coordsHistory.push(data);
     // throtle(coordsHistory.push(data), 1000);
-    this.drawDashedCrosshair();
+    drawer.drawDashedCrosshair();
 
-    drawPoint(this.x, this.y);
-    drawLine(coordsHistory);
+    drawer.drawPoint(this.x, this.y);
+    drawer.drawLine(coordsHistory);
 
     drawHeightOfPoint(this.x, this.y);
     this.checkIsTaxIntersection()
@@ -321,22 +338,6 @@ const point = {
     this.speed = -thrust;
     if (state.startGameTime) state.tapsCounts += 1
     results.flaps.push(Date.now());
-  },
-  drawDashedCrosshair: function (y, x) {
-    sctx.lineDashOffset = 0;
-    sctx.lineWidth = lineWidth_0_5;
-    sctx.beginPath();
-    sctx.setLineDash([15, 15]);
-
-    sctx.moveTo(this.x, 0);
-    sctx.lineTo(this.x, frmaeHeight);
-
-    sctx.moveTo(0, this.y);
-    sctx.lineTo(sceneWidth, this.y);
-
-    sctx.strokeStyle = colors.lineGray;
-    sctx.stroke();
-    // sctx.save();
   },
   checkIsTaxIntersection: function () {
     const isTaxIntersection = this.x > tax.taxes[0]?.x;
@@ -385,7 +386,7 @@ const UI = {
     this.drawScore();
   },
   drawScore: function () {
-    setTextStyles();
+    drawer.setTextStyles();
     drawProducedScore();
     drawProfitScore();
     drawTaxed();
@@ -439,8 +440,8 @@ function draw() {
   sctx.fillStyle = "white";
   sctx.fillRect(0, 0, scrn.width, scrn.height);
   tax.draw();
-  drawDashedLine(floorHeight, sceneX);
-  drawDashedLine(siblingHeight, sceneX);
+  drawer.drawDashedLine(floorHeight, sceneX);
+  drawer.drawDashedLine(siblingHeight, sceneX);
 
   point.draw();
   UI.draw();
