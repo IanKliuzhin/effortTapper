@@ -6,7 +6,6 @@ const sctx = scrn.getContext("2d");
 scrn.tabIndex = 1;
 
 const frmaeHeight = 700;
-const sceneHeight = 500;
 const sceneWidth = 1000;
 const ceilingHeight = 100;
 const floorHeight = 600;
@@ -197,49 +196,6 @@ const saveResults = throttle(() => {
   results.taxesBySeconds.push(-state.taxPerSecond);
 }, 1000)
 
-const drawProducedScore = () => {
-  drawer.setTextStyles(false);
-  sctx.textAlign = "right";
-  sctx.fillText(state.scoreProduced + "¢", scrn.width - 150, 40);
-  sctx.textAlign = "left";
-  sctx.fillStyle = drawer.colors.textGray;
-  sctx.fillText("produced", scrn.width - 140, 40);
-};
-const drawTaxed = () => {
-  drawer.setTextStyles(false);
-  sctx.textAlign = "right";
-  sctx.fillText(state.scoreTaxed + "¢", scrn.width - 150, 70);
-  sctx.fillStyle = drawer.colors.textGray;
-  sctx.textAlign = "left";
-  sctx.fillText("taxed", scrn.width - 140, 70);
-};
-
-const drawProfitScore = () => {
-  drawer.setTextStyles(false);
-  sctx.textAlign = "right";
-  sctx.fillText(state.scoreProduced + state.scoreTaxed + "¢", 500, 40);
-  sctx.textAlign = "left";
-  sctx.fillStyle = drawer.colors.textGray;
-  sctx.fillText("profit", 510, 40);
-};
-const drawProfitPerSecond = () => {
-  drawer.setTextStyles(false);
-  sctx.textAlign = "right";
-  sctx.fillText(state.scorePerSecond - state.taxPerSecond + "¢", 500, 70);
-  sctx.textAlign = "left";
-  sctx.fillStyle = drawer.colors.textGray;
-  sctx.fillText("profit /s", 510, 70);
-};
-const drawTimer = () => {
-  if (!state.leftTimerValue) setLeftTimerValue()
-  drawer.setTextStyles(false);
-  sctx.textAlign = "right";
-  sctx.fillText(state.leftTimerValue?.toLocaleTimeString("en-GB") + " /", 200, 70);
-  sctx.textAlign = "left";
-  const rightTimer = new Date(2000, 0, 0, 1, 0, 0).toLocaleTimeString("en-GB")
-  sctx.fillText(rightTimer, 208, 70);
-};
-
 scrn.addEventListener("click", () => {
   switch (state.currentGameStep) {
     case state.indexGameStep:
@@ -356,49 +312,116 @@ class Ball {
 
 const ball = new Ball();
 
-const UI = {
-  indexGameStep: { sprite: new Image() },
-  gameOver: { sprite: new Image() },
-  tap: [{ sprite: new Image() }, { sprite: new Image() }],
-  x: 0,
-  y: 0,
-  tx: 0,
-  ty: 0,
-  frame: 0,
-  draw: function () {
+class UI {
+  getReadyImage = new Image();
+  gameOverImage = new Image();
+  tapImages = [new Image(), new Image()];
+  frame = 0;
+
+  constructor() {
+    this.getReadyImage.src = "img/getReady.png";
+    this.gameOverImage.src = "img/gameOver.png";
+    this.tapImages[0].src = "img/tap1.png";
+    this.tapImages[1].src = "img/tap2.png";
+  }
+  
+  clearScreen = () => {
+    sctx.fillRect(0, 0, scrn.width, scrn.height);
+  }
+
+  drawBorders = () => {
+    drawer.drawDashedLine(floorHeight, sceneX);
+    drawer.drawDashedLine(ceilingHeight, sceneX);
+  }
+
+  draw = () => {
     switch (state.currentGameStep) {
       case state.indexGameStep:
-          this.y = parseFloat(scrn.height - this.indexGameStep.sprite.height) / 2;
-          this.x = parseFloat(scrn.width - this.indexGameStep.sprite.width) / 2;
-          this.tx = parseFloat(scrn.width - this.tap[0].sprite.width) / 2;
-          this.ty =
-            this.y + this.indexGameStep.sprite.height - this.tap[0].sprite.height;
-          sctx.drawImage(this.indexGameStep.sprite, this.x, this.y);
-        sctx.drawImage(this.tap[this.frame].sprite, this.tx, this.ty);   
+          this.drawGetReady()
         break;
       case state.finalScreenGameStep:
-          this.y = parseFloat(scrn.height - this.gameOver.sprite.height) / 2;
-          this.x = parseFloat(scrn.width - this.gameOver.sprite.width) / 2;
-          this.tx = parseFloat(scrn.width - this.tap[0].sprite.width) / 2;
-          this.ty =
-          this.y + this.gameOver.sprite.height - this.tap[0].sprite.height;
-          
-        sctx.fillStyle = "white";
-          // sctx.fillRect(this.x - 150, this.y - 80, 400, 200);
-          sctx.drawImage(this.gameOver.sprite, this.x, this.y);
+          this.drawGameOver()
         break;
+      default:
+        this.drawScore();
     }
-    this.drawScore();
-  },
-  drawScore: function () {
+  };
+
+  drawGetReady = () => {
+    const x = parseFloat(scrn.width - this.getReadyImage.width) / 2;
+    const y = parseFloat(scrn.height - this.getReadyImage.height) / 2;
+    const width = parseFloat(scrn.width - this.tapImages[0].width) / 2;
+    const height = y + this.getReadyImage.height - this.tapImages[0].height;
+    sctx.drawImage(this.getReadyImage, x, y);
+    sctx.drawImage(this.tapImages[this.frame], width, height); 
+  }
+
+  drawGameOver = () => {
+    const x = parseFloat(scrn.width - this.gameOverImage.width) / 2;
+    const y = parseFloat(scrn.height - this.gameOverImage.height) / 2;
+    // this.tx = parseFloat(scrn.width - this.tapImages[0].width) / 2;
+    // this.ty = this.y + this.gameOverImage.height - this.tapImages[0].height;
+    sctx.fillStyle = "white";
+    // sctx.fillRect(this.x - 150, this.y - 80, 400, 200);
+    sctx.drawImage(this.gameOverImage, x, y);
+  }
+
+  drawProducedScore = () => {
+    drawer.setTextStyles(false);
+    sctx.textAlign = "right";
+    sctx.fillText(state.scoreProduced + "¢", scrn.width - 150, 40);
+    sctx.textAlign = "left";
+    sctx.fillStyle = drawer.colors.textGray;
+    sctx.fillText("produced", scrn.width - 140, 40);
+  };
+
+  drawTaxed = () => {
+    drawer.setTextStyles(false);
+    sctx.textAlign = "right";
+    sctx.fillText(state.scoreTaxed + "¢", scrn.width - 150, 70);
+    sctx.fillStyle = drawer.colors.textGray;
+    sctx.textAlign = "left";
+    sctx.fillText("taxed", scrn.width - 140, 70);
+  };
+  
+  drawProfitScore = () => {
+    drawer.setTextStyles(false);
+    sctx.textAlign = "right";
+    sctx.fillText(state.scoreProduced + state.scoreTaxed + "¢", 500, 40);
+    sctx.textAlign = "left";
+    sctx.fillStyle = drawer.colors.textGray;
+    sctx.fillText("profit", 510, 40);
+  };
+
+  drawProfitPerSecond = () => {
+    drawer.setTextStyles(false);
+    sctx.textAlign = "right";
+    sctx.fillText(state.scorePerSecond - state.taxPerSecond + "¢", 500, 70);
+    sctx.textAlign = "left";
+    sctx.fillStyle = drawer.colors.textGray;
+    sctx.fillText("profit /s", 510, 70);
+  };
+
+  drawTimer = () => {
+    if (!state.leftTimerValue) setLeftTimerValue()
+    drawer.setTextStyles(false);
+    sctx.textAlign = "right";
+    sctx.fillText(state.leftTimerValue?.toLocaleTimeString("en-GB") + " /", 200, 70);
+    sctx.textAlign = "left";
+    const rightTimer = new Date(2000, 0, 0, 1, 0, 0).toLocaleTimeString("en-GB")
+    sctx.fillText(rightTimer, 208, 70);
+  };
+
+  drawScore = () => {
     drawer.setTextStyles();
-    drawProducedScore();
-    drawProfitScore();
-    drawTaxed();
-    drawProfitPerSecond();
-    drawTimer();
-  },
-  update: function () {
+    this.drawProducedScore();
+    this.drawProfitScore();
+    this.drawTaxed();
+    this.drawProfitPerSecond();
+    this.drawTimer();
+  };
+
+  update = () => {
     if (state.currentGameStep === state.finalScreenGameStep) {
       clearInterval(gameInterval);
       results.produced = state.scoreProduced
@@ -437,23 +460,24 @@ const UI = {
 
     if (state.currentGameStep === state.playGameStep) return;
     this.frame += frames % 10 === 0 ? 1 : 0;
-    this.frame = this.frame % this.tap.length;
-  },
+    this.frame = this.frame % this.tapImages.length;
+  };
 };
+
+const ui = new UI();
 
 function draw() {
   sctx.fillStyle = "white";
-  sctx.fillRect(0, 0, scrn.width, scrn.height);
+  ui.clearScreen();
   taxing.draw();
-  drawer.drawDashedLine(floorHeight, sceneX);
-  drawer.drawDashedLine(ceilingHeight, sceneX);
+  ui.drawBorders();
 
   ball.draw();
-  UI.draw();
+  ui.draw();
 }
 
 function update() {
-  UI.update();
+  ui.update();
   if (state.currentGameStep !== state.playGameStep) return;
   sceneX -= dx;
 }
@@ -465,11 +489,6 @@ function gameLoop() {
 }
 
 const runGame = () => {
-  UI.gameOver.sprite.src = "img/gameOver.png";
-  UI.indexGameStep.sprite.src = "img/getReady.png";
-  UI.tap[0].sprite.src = "img/tap1.png";
-  UI.tap[1].sprite.src = "img/tap2.png";
-
   gameInterval = setInterval(gameLoop, 20);
 };
 
