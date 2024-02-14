@@ -8,14 +8,16 @@ scrn.tabIndex = 1;
 const frmaeHeight = 700;
 const sceneHeight = 500;
 const sceneWidth = 1000;
-const siblingHeight = 100;
+const ceilingHeight = 100;
 const floorHeight = 600;
 
-const pointRadius = 35;
-const pointXCoord = 350;
+const BALL_RADIUS = 35;
+const BALL_X = 350;
+const START_BALL_Y = 560;
+const MIN_GRAVITY = 0.125;
 
-const maxSceneHeght = siblingHeight + pointRadius; // 135
-const minSceneHeight = floorHeight - pointRadius; // 565
+const maxSceneHeght = ceilingHeight + BALL_RADIUS; // 135
+const minSceneHeight = floorHeight - BALL_RADIUS; // 565
 const minSceneMaxHeight = minSceneHeight - maxSceneHeght; // 440
 
 const dx = 2;
@@ -41,7 +43,7 @@ let coordsHistory = [];
 class Drawer {
   colors = {
     textGray: "#A2A2A2",
-    pointColor: "#DCDCDC",
+    ballColor: "#DCDCDC",
     lineGray: "#CCCCCC"
   }
   lineWidth_1 = 1;
@@ -56,10 +58,10 @@ class Drawer {
     sctx.strokeStyle = "black";
   };
   
-  drawPoint = (x, y) => {
-    sctx.fillStyle = this.colors.pointColor;
+  drawCircle = (x, y, radius) => {
+    sctx.fillStyle = this.colors.ballColor;
     sctx.beginPath();
-    sctx.arc(x, y, pointRadius, 0, 2 * Math.PI);
+    sctx.arc(x, y, radius, 0, 2 * Math.PI);
     sctx.fill();
   };
 
@@ -156,11 +158,11 @@ const getScorePerSecondByY = (y) => {
 };
 
 const getYByScorePerSecond = (score) => {
-  const minSceneMaxHeight = floorHeight - siblingHeight;
+  const minSceneMaxHeight = floorHeight - ceilingHeight;
   return Math.abs(Math.floor((minSceneMaxHeight * score) / 100 - floorHeight));
 };
 
-const drawHeightOfPoint = (x, y) => {
+const drawHeightOfBall = (x, y) => {
   drawer.setTextStyles(true);
 
   let scorePerSecond = getScorePerSecondByY(y);
@@ -244,7 +246,7 @@ scrn.addEventListener("click", () => {
       state.currentGameStep = state.playGameStep;
       break;
     case state.playGameStep:
-      point.flap();
+      ball.flap();
       break;
     // case state.finalScreenGameStep:
       // state.currentGameStep = state.indexGameStep;
@@ -285,34 +287,34 @@ class Taxing {
 
 const taxing = new Taxing();
 
-const point = {
-  x: pointXCoord,
-  y: 560,
-  speed: 0,
-  gravity: 0.125,
-  frame: 0,
-  draw: function () {
+class Ball {
+  X = BALL_X;
+  y = START_BALL_Y;
+  fallingSpeed = 0;
+  gravity = MIN_GRAVITY;
+
+  draw = () => {
     if (state.currentGameStep !== state.playGameStep) {
-      drawer.drawPoint(this.x, this.y);
+      drawer.drawCircle(this.X, this.y, BALL_RADIUS);
       return;
     }
 
-    const bottomOfThePoint = this.y + pointRadius;
-    const floorPointIntersection = bottomOfThePoint > floorHeight;
-    const topOfThePoint = this.y - pointRadius;
+    const bottomY = this.y + BALL_RADIUS;
+    const isIntersectedWithFloor = bottomY > floorHeight;
+    const topY = this.y - BALL_RADIUS;
 
-    this.speed += (this.gravity * (2 * getScorePerSecondByY(this.y) / 100));
+    this.gravity = MIN_GRAVITY * (1 + getScorePerSecondByY(this.y) / 100)
+    this.fallingSpeed += this.gravity;
 
-    if (!floorPointIntersection) {
-      const isNextYLowerThenFloor = bottomOfThePoint + this.speed > floorHeight;
-      const isNextYHigherThenSibbling =
-        topOfThePoint + this.speed < siblingHeight;
+    if (!isIntersectedWithFloor) {
+      const isNextYLowerThenFloor = bottomY + this.fallingSpeed > floorHeight;
+      const isNextYHigherThenCeiling = topY + this.fallingSpeed < ceilingHeight;
       if (isNextYLowerThenFloor) {
-        this.y = floorHeight - pointRadius;
-      } else if (isNextYHigherThenSibbling) {
-        this.y = siblingHeight + pointRadius;
+        this.y = floorHeight - BALL_RADIUS;
+      } else if (isNextYHigherThenCeiling) {
+        this.y = ceilingHeight + BALL_RADIUS;
       } else {
-        this.y += this.speed;
+        this.y += this.fallingSpeed;
       }
     }
 
@@ -322,27 +324,26 @@ const point = {
     coordsHistory = last200Coords.map((coords) => {
       return { x: coords.x - dx, y: coords.y, date: coords.date };
     });
-    const data = { x: this.x, y: this.y, date: Date.now() };
-    coordsHistory.push(data);
-    // throtle(coordsHistory.push(data), 1000);
+    coordsHistory.push({ x: this.X, y: this.y, date: Date.now() });
     drawer.drawDashedCrosshair();
 
-    drawer.drawPoint(this.x, this.y);
+    drawer.drawCircle(this.X, this.y, BALL_RADIUS);
     drawer.drawLine(coordsHistory);
 
-    drawHeightOfPoint(this.x, this.y);
+    drawHeightOfBall(this.X, this.y);
     this.checkIsTaxIntersection()
-    // console.log("coordsHistory: ", coordsHistory);
-  },
-  flap: function () {
+  };
+
+  flap = () => {
     if (this.y < 0) return;
     let thrust = 5.31 - Math.log1p(state.scorePerSecond / 1.5 || 1);
-    this.speed = -thrust;
+    this.fallingSpeed = -thrust;
     if (state.startGameTime) state.tapsCounts += 1
     results.flaps.push(Date.now());
-  },
-  checkIsTaxIntersection: function () {
-    const isTaxIntersection = this.x > taxing.taxes[0]?.x;
+  };
+
+  checkIsTaxIntersection = () => {
+    const isTaxIntersection = this.X > taxing.taxes[0]?.x;
     if (!isTaxIntersection) return
     decreaseScoreTaxed()
     increaseScoreProduced();
@@ -350,8 +351,10 @@ const point = {
     setTaxPerSecond(taxing.taxes[0].taxRate)
     if (!state.startGameTime) state.startGameTime = Date.now();
     saveResults();
-  }
-};
+  };
+}
+
+const ball = new Ball();
 
 const UI = {
   indexGameStep: { sprite: new Image() },
@@ -443,9 +446,9 @@ function draw() {
   sctx.fillRect(0, 0, scrn.width, scrn.height);
   taxing.draw();
   drawer.drawDashedLine(floorHeight, sceneX);
-  drawer.drawDashedLine(siblingHeight, sceneX);
+  drawer.drawDashedLine(ceilingHeight, sceneX);
 
-  point.draw();
+  ball.draw();
   UI.draw();
 }
 
