@@ -255,10 +255,10 @@ scrn.addEventListener("click", () => {
   }
 });
 
-const tax = {
-  moving: true,
-  taxes: [],
-  draw: function () {
+class Taxing {
+  taxes = [];
+
+  draw = () => {
     for (let tax of this.taxes) {
       sctx.fillStyle = "rgba(233, 170, 170, 0.3)";
       const taxWidth = sceneWidth - tax.x;
@@ -279,9 +279,11 @@ const tax = {
         taxRate
       });
     }
-    this.taxes.forEach((taxe) => taxe.x -= dx);
-  },
-};
+    this.taxes.forEach((tax) => tax.x -= dx);
+  };
+}
+
+const taxing = new Taxing();
 
 const point = {
   x: pointXCoord,
@@ -340,12 +342,12 @@ const point = {
     results.flaps.push(Date.now());
   },
   checkIsTaxIntersection: function () {
-    const isTaxIntersection = this.x > tax.taxes[0]?.x;
+    const isTaxIntersection = this.x > taxing.taxes[0]?.x;
     if (!isTaxIntersection) return
     decreaseScoreTaxed()
     increaseScoreProduced();
     setLeftTimerValue()
-    setTaxPerSecond(tax.taxes[0].taxRate)
+    setTaxPerSecond(taxing.taxes[0].taxRate)
     if (!state.startGameTime) state.startGameTime = Date.now();
     saveResults();
   }
@@ -439,7 +441,7 @@ const UI = {
 function draw() {
   sctx.fillStyle = "white";
   sctx.fillRect(0, 0, scrn.width, scrn.height);
-  tax.draw();
+  taxing.draw();
   drawer.drawDashedLine(floorHeight, sceneX);
   drawer.drawDashedLine(siblingHeight, sceneX);
 
