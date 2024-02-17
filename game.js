@@ -35,7 +35,6 @@ const throttle = (callback, delay) => {
   };
 };
 
-let frames = 0;
 let sceneX = 0;
 let coordsHistory = [];
 
@@ -125,30 +124,6 @@ class Drawer {
 
 const drawer = new Drawer();
 
-const state = {
-  currentGameStep: 0,
-  indexGameStep: 0,
-  playGameStep: 1,
-  finalScreenGameStep: 2,
-  scorePerSecond: 0,
-  scoreProduced: 0,
-  scoreProfit: 0,
-  scoreTaxed: 0,
-  taxPerSecond: 0,
-  startGameTime: null,
-  leftTimerValue: null,
-  tapsCounts: 0
-};
-
-const results = {
-  scoresBySeconds: [],
-  flaps: [],
-  taxesBySeconds: [],
-  produced: 0,
-  taxed: 0,
-  profit: 0,
-}
-
 const getScorePerSecondByY = (y) => {
   const result = Math.abs(
     Math.floor((100 * (y - minSceneHeight)) / minSceneMaxHeight)
@@ -168,40 +143,15 @@ const drawHeightOfBall = (x, y) => {
   sctx.textAlign = "left";
   sctx.fillText(scorePerSecond, x + 45, y - 10);
 
-  state.scorePerSecond = scorePerSecond;
+  game.scorePerSecond = scorePerSecond;
 };
 
-const increaseScoreProduced = throttle(
-  () => (state.scoreProduced += state.scorePerSecond),
-  1000
-);
-const decreaseScoreTaxed = throttle(
-  () => (state.scoreTaxed -= taxRate),
-  1000
-);
-const setTaxPerSecond = throttle(
-  (score) => (state.taxPerSecond = score),
-  1000
-);
-const setLeftTimerValue = throttle(
-  () => {
-    const secondsFromStart = Math.floor(Date.now() - state.startGameTime) / (1000)
-    state.leftTimerValue = state.startGameTime ? new Date(new Date(0, 0, 0, 0, secondsFromStart, 0)) : new Date(0, 0, 0, 0, 0, 0)
-  },
-  1000
-);
-
-const saveResults = throttle(() => {
-  results.scoresBySeconds.push(state.scorePerSecond);
-  results.taxesBySeconds.push(-state.taxPerSecond);
-}, 1000)
-
 scrn.addEventListener("click", () => {
-  switch (state.currentGameStep) {
-    case state.indexGameStep:
-      state.currentGameStep = state.playGameStep;
+  switch (game.currentGameStep) {
+    case game.indexGameStep:
+      game.currentGameStep = game.playGameStep;
       break;
-    case state.playGameStep:
+    case game.playGameStep:
       ball.flap();
       break;
     // case state.finalScreenGameStep:
@@ -228,9 +178,9 @@ class Taxing {
       }
     }
 
-    if (state.currentGameStep != state.playGameStep) return;
+    if (game.currentGameStep != game.playGameStep) return;
 
-    if (frames > 200 == 0 && this.taxes.length === 0) {
+    if (game.framesAmount > 200 == 0 && this.taxes.length === 0) {
       this.taxes.push({
         x: sceneWidth,
         y: getYByScorePerSecond(taxRate),
@@ -250,7 +200,7 @@ class Ball {
   gravity = MIN_GRAVITY;
 
   draw = () => {
-    if (state.currentGameStep !== state.playGameStep) {
+    if (game.currentGameStep !== game.playGameStep) {
       drawer.drawCircle(this.X, this.y, BALL_RADIUS);
       return;
     }
@@ -292,21 +242,21 @@ class Ball {
 
   flap = () => {
     if (this.y < 0) return;
-    let thrust = 5.31 - Math.log1p(state.scorePerSecond / 1.5 || 1);
+    let thrust = 5.31 - Math.log1p(game.scorePerSecond / 1.5 || 1);
     this.fallingSpeed = -thrust;
-    if (state.startGameTime) state.tapsCounts += 1
-    results.flaps.push(Date.now());
+    if (game.startGameTime) game.tapsCounts += 1
+    game.results.flaps.push(Date.now());
   };
 
   checkIsTaxIntersection = () => {
     const isTaxIntersection = this.X > taxing.taxes[0]?.x;
     if (!isTaxIntersection) return
-    decreaseScoreTaxed()
-    increaseScoreProduced();
-    setLeftTimerValue()
-    setTaxPerSecond(taxing.taxes[0].taxRate)
-    if (!state.startGameTime) state.startGameTime = Date.now();
-    saveResults();
+    game.decreaseScoreTaxed()
+    game.increaseScoreProduced();
+    game.setLeftTimerValue()
+    game.setTaxPerSecond(taxing.taxes[0].taxRate)
+    if (!game.startGameTime) game.startGameTime = Date.now();
+    game.saveResults();
   };
 }
 
@@ -335,11 +285,11 @@ class UI {
   }
 
   draw = () => {
-    switch (state.currentGameStep) {
-      case state.indexGameStep:
+    switch (game.currentGameStep) {
+      case game.indexGameStep:
           this.drawGetReady()
         break;
-      case state.finalScreenGameStep:
+      case game.finalScreenGameStep:
           this.drawGameOver()
         break;
       default:
@@ -369,7 +319,7 @@ class UI {
   drawProducedScore = () => {
     drawer.setTextStyles(false);
     sctx.textAlign = "right";
-    sctx.fillText(state.scoreProduced + "¢", scrn.width - 150, 40);
+    sctx.fillText(game.scoreProduced + "¢", scrn.width - 150, 40);
     sctx.textAlign = "left";
     sctx.fillStyle = drawer.colors.textGray;
     sctx.fillText("produced", scrn.width - 140, 40);
@@ -378,7 +328,7 @@ class UI {
   drawTaxed = () => {
     drawer.setTextStyles(false);
     sctx.textAlign = "right";
-    sctx.fillText(state.scoreTaxed + "¢", scrn.width - 150, 70);
+    sctx.fillText(game.scoreTaxed + "¢", scrn.width - 150, 70);
     sctx.fillStyle = drawer.colors.textGray;
     sctx.textAlign = "left";
     sctx.fillText("taxed", scrn.width - 140, 70);
@@ -387,7 +337,7 @@ class UI {
   drawProfitScore = () => {
     drawer.setTextStyles(false);
     sctx.textAlign = "right";
-    sctx.fillText(state.scoreProduced + state.scoreTaxed + "¢", 500, 40);
+    sctx.fillText(game.scoreProduced + game.scoreTaxed + "¢", 500, 40);
     sctx.textAlign = "left";
     sctx.fillStyle = drawer.colors.textGray;
     sctx.fillText("profit", 510, 40);
@@ -396,17 +346,17 @@ class UI {
   drawProfitPerSecond = () => {
     drawer.setTextStyles(false);
     sctx.textAlign = "right";
-    sctx.fillText(state.scorePerSecond - state.taxPerSecond + "¢", 500, 70);
+    sctx.fillText(game.scorePerSecond - game.taxPerSecond + "¢", 500, 70);
     sctx.textAlign = "left";
     sctx.fillStyle = drawer.colors.textGray;
     sctx.fillText("profit /s", 510, 70);
   };
 
   drawTimer = () => {
-    if (!state.leftTimerValue) setLeftTimerValue()
+    if (!game.leftTimerValue) game.setLeftTimerValue()
     drawer.setTextStyles(false);
     sctx.textAlign = "right";
-    sctx.fillText(state.leftTimerValue?.toLocaleTimeString("en-GB") + " /", 200, 70);
+    sctx.fillText(game.leftTimerValue?.toLocaleTimeString("en-GB") + " /", 200, 70);
     sctx.textAlign = "left";
     const rightTimer = new Date(2000, 0, 0, 1, 0, 0).toLocaleTimeString("en-GB")
     sctx.fillText(rightTimer, 208, 70);
@@ -422,14 +372,15 @@ class UI {
   };
 
   update = () => {
-    if (state.currentGameStep === state.finalScreenGameStep) {
-      clearInterval(gameInterval);
-      results.produced = state.scoreProduced
-      results.taxed = state.scoreTaxed
-      results.profit = state.scoreProduced + state.scoreTaxed
+    if (game.currentGameStep === game.finalScreenGameStep) {
+      const { results } = game;
+      clearInterval(game.interval);
+      results.produced = game.scoreProduced
+      results.taxed = game.scoreTaxed
+      results.profit = game.scoreProduced + game.scoreTaxed
       results.flaps = results.flaps.map((flap) => {
-        const isBeforeStart = flap < state.startGameTime
-        const time = new Date(isBeforeStart ? state.startGameTime - flap : flap - state.startGameTime)
+        const isBeforeStart = flap < game.startGameTime
+        const time = new Date(isBeforeStart ? game.startGameTime - flap : flap - game.startGameTime)
         return `${isBeforeStart ? '-' : ''}${time.getSeconds()}.${time.getMilliseconds()}`
       }).join(', ')
       results.scoresBySeconds = results.scoresBySeconds.join(', ')
@@ -454,42 +405,100 @@ class UI {
       }, 750)
     }
 
-    if (state.startGameTime && state.startGameTime + gameLength < Date.now()) {
-      state.currentGameStep = state.finalScreenGameStep
+    if (game.startGameTime && game.startGameTime + game.duration < Date.now()) {
+      game.currentGameStep = game.finalScreenGameStep
     }
 
-    if (state.currentGameStep === state.playGameStep) return;
-    this.frame += frames % 10 === 0 ? 1 : 0;
+    if (game.currentGameStep === game.playGameStep) return;
+    this.frame += game.framesAmount % 10 === 0 ? 1 : 0;
     this.frame = this.frame % this.tapImages.length;
   };
 };
 
 const ui = new UI();
 
-function draw() {
-  sctx.fillStyle = "white";
-  ui.clearScreen();
-  taxing.draw();
-  ui.drawBorders();
+class Game {
+  duration = 0;
+  interval = 0;
+  framesAmount = 0;
 
-  ball.draw();
-  ui.draw();
+  currentGameStep = 0;
+  indexGameStep = 0;
+  playGameStep = 1;
+  finalScreenGameStep = 2;
+  scorePerSecond = 0;
+  scoreProduced = 0;
+  scoreTaxed = 0;
+  taxPerSecond = 0;
+  startGameTime = null;
+  leftTimerValue = null;
+  tapsCounts = 0;
+  
+  results = {
+    scoresBySeconds: [],
+    flaps: [],
+    taxesBySeconds: [],
+    produced: 0,
+    taxed: 0,
+    profit: 0,
+  }
+
+  constructor(duration) {
+    this.duration = duration;
+  }
+
+  run = () => {
+    this.interval = setInterval(this.gameLoop, 20);
+  }
+  
+  gameLoop = () => {
+    this.draw();
+    this.update();
+    this.framesAmount++;
+  }
+
+  draw = () => {
+    sctx.fillStyle = "white";
+    ui.clearScreen();
+    taxing.draw();
+    ui.drawBorders();
+  
+    ball.draw();
+    ui.draw();
+  }
+
+  update = () => {
+    ui.update();
+    if (this.currentGameStep !== this.playGameStep) return;
+    sceneX -= dx;
+  }
+
+  increaseScoreProduced = throttle(
+    () => (this.scoreProduced += this.scorePerSecond),
+    1000
+  );
+  decreaseScoreTaxed = throttle(
+    () => (this.scoreTaxed -= taxRate),
+    1000
+  );
+  setTaxPerSecond = throttle(
+    (score) => (this.taxPerSecond = score),
+    1000
+  );
+  setLeftTimerValue = throttle(
+    () => {
+      const secondsFromStart = Math.floor(Date.now() - this.startGameTime) / (1000)
+      this.leftTimerValue = this.startGameTime ? new Date(new Date(0, 0, 0, 0, secondsFromStart, 0)) : new Date(0, 0, 0, 0, 0, 0)
+    },
+    1000
+  );
+  
+  saveResults = throttle(() => {
+    this.results.scoresBySeconds.push(this.scorePerSecond);
+    this.results.taxesBySeconds.push(-this.taxPerSecond);
+  }, 1000)
 }
 
-function update() {
-  ui.update();
-  if (state.currentGameStep !== state.playGameStep) return;
-  sceneX -= dx;
-}
+const game = new Game(GAME_DURATION_MS);
 
-function gameLoop() {
-  draw();
-  update();
-  frames++;
-}
-
-const runGame = () => {
-  gameInterval = setInterval(gameLoop, 20);
-};
-
-runGame();
+game.run();
