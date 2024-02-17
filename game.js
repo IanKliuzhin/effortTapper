@@ -50,7 +50,7 @@ class Drawer {
   };
 
   drawHorizontalDashedLine = (y, dashOffset) => {
-    const { DISPLAY_WITDH } = this.game.ui
+    const { DISPLAY_WITDH } = this.game.ui;
 
     sctx.lineDashOffset = dashOffset;
     sctx.lineWidth = this.lineWidth_1;
@@ -94,7 +94,7 @@ class Drawer {
   };
 
   drawDashedCrosshair = (x, y) => {
-    const { FLOOR_Y, CEILING_Y, DISPLAY_WITDH } = this.game.ui
+    const { FLOOR_Y, CEILING_Y, DISPLAY_WITDH } = this.game.ui;
 
     sctx.lineDashOffset = 0;
     sctx.beginPath();
@@ -121,15 +121,16 @@ class Taxing {
   }
 
   getYByScorePerSecond = (score) => {
-    const { FLOOR_Y } = this.game.ui
-    const { MAX_AMPLITUDE_Y } = this.game.ball
+    const { FLOOR_Y } = this.game.ui;
+    const { MAX_AMPLITUDE_Y } = this.game.ball;
 
     return Math.abs(Math.floor((MAX_AMPLITUDE_Y * score) / 100 - FLOOR_Y));
   };
 
   draw = () => {
-    const { ui, currentGameStep, playGameStep, framesAmount, TICK_SHIFT_X } = this.game;
-    const { DISPLAY_WITDH } = ui
+    const { ui, currentGameStep, playGameStep, framesAmount, TICK_SHIFT_X } =
+      this.game;
+    const { DISPLAY_WITDH } = ui;
 
     for (let tax of this.taxes) {
       sctx.fillStyle = "rgba(233, 170, 170, 0.3)";
@@ -168,7 +169,7 @@ class Ball {
   MAX_TOP_Y;
   MIN_BOTTOM_Y;
   MAX_AMPLITUDE_Y;
-  
+
   constructor(game) {
     this.game = game;
     this.MAX_TOP_Y = game.ui.CEILING_Y + this.RADIUS; // 135
@@ -196,8 +197,9 @@ class Ball {
   };
 
   draw = () => {
-    const { drawer, currentGameStep, playGameStep, ui, TICK_SHIFT_X } = this.game;
-    const { FLOOR_Y, CEILING_Y } = ui
+    const { drawer, currentGameStep, playGameStep, ui, TICK_SHIFT_X } =
+      this.game;
+    const { FLOOR_Y, CEILING_Y } = ui;
 
     if (currentGameStep !== playGameStep) {
       drawer.drawCircle(this.X, this.y, this.RADIUS);
@@ -208,7 +210,8 @@ class Ball {
     const isIntersectedWithFloor = bottomY > FLOOR_Y;
     const topY = this.y - this.RADIUS;
 
-    this.gravity = this.MIN_GRAVITY * (1 + this.getScorePerSecondByY(this.y) / 100);
+    this.gravity =
+      this.MIN_GRAVITY * (1 + (1.23 * this.getScorePerSecondByY(this.y)) / 100);
     this.fallingSpeed += this.gravity;
 
     if (!isIntersectedWithFloor) {
@@ -407,7 +410,7 @@ class UI {
       results,
       duration,
       playGameStep,
-      framesAmount
+      framesAmount,
     } = this.game;
 
     if (currentGameStep === finalScreenGameStep) {
