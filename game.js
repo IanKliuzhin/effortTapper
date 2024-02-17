@@ -1,27 +1,11 @@
 const searchParams = new URLSearchParams(window.location.search);
-const taxRate = Number(searchParams.get('tax'));
+const taxRate = Number(searchParams.get("tax"));
 
 const scrn = document.getElementById("canvas");
 const sctx = scrn.getContext("2d");
 scrn.tabIndex = 1;
 
-const frmaeHeight = 700;
-const sceneWidth = 1000;
-const ceilingHeight = 100;
-const floorHeight = 600;
-
-const BALL_RADIUS = 35;
-const BALL_X = 350;
-const START_BALL_Y = 560;
-const MIN_GRAVITY = 0.125;
-
-const maxSceneHeght = ceilingHeight + BALL_RADIUS; // 135
-const minSceneHeight = floorHeight - BALL_RADIUS; // 565
-const minSceneMaxHeight = minSceneHeight - maxSceneHeght; // 440
-
-const dx = 2;
-const gameLength = 60_000;
-let gameInterval = 0;
+const GAME_DURATION_MS = 60_000;
 
 const throttle = (callback, delay) => {
   let shouldWait = false;
@@ -35,19 +19,21 @@ const throttle = (callback, delay) => {
   };
 };
 
-let sceneX = 0;
-let coordsHistory = [];
-
 class Drawer {
+  game;
   colors = {
     textGray: "#A2A2A2",
     ballColor: "#DCDCDC",
-    lineGray: "#CCCCCC"
-  }
+    lineGray: "#CCCCCC",
+  };
   lineWidth_1 = 1;
   lineWidth_2 = 2;
   h1Font = "700 28px courier";
   h2Font = "400 22px Tahoma";
+
+  constructor(game) {
+    this.game = game;
+  }
 
   setTextStyles = (h1 = true) => {
     sctx.font = h1 ? this.h1Font : this.h2Font;
@@ -55,7 +41,7 @@ class Drawer {
     sctx.fillStyle = "black";
     sctx.strokeStyle = "black";
   };
-  
+
   drawCircle = (x, y, radius) => {
     sctx.fillStyle = this.colors.ballColor;
     sctx.beginPath();
@@ -63,13 +49,15 @@ class Drawer {
     sctx.fill();
   };
 
-  drawDashedLine = (y, x) => {
-    sctx.lineDashOffset = -x;
+  drawHorizontalDashedLine = (y, dashOffset) => {
+    const { DISPLAY_WITDH } = this.game.ui
+
+    sctx.lineDashOffset = dashOffset;
     sctx.lineWidth = this.lineWidth_1;
     sctx.beginPath();
     sctx.setLineDash([15, 15]);
     sctx.moveTo(0, y);
-    sctx.lineTo(sceneWidth, y);
+    sctx.lineTo(DISPLAY_WITDH, y);
     sctx.strokeStyle = this.colors.lineGray;
     sctx.stroke();
   };
@@ -82,39 +70,41 @@ class Drawer {
     for (let i = 0; i < last200Coords.length - 1; i++) {
       const lastPoint = last200Coords[i];
       const firstPoint = last200Coords[i + 1];
-  
+
       const x_mid = (lastPoint.x + firstPoint.x) / 2;
       const y_mid = (lastPoint.y + firstPoint.y) / 2;
       const cp_x = (x_mid + lastPoint.x) / 2;
       const cp_y = (y_mid + lastPoint.y) / 2;
-  
+
       sctx.quadraticCurveTo(cp_x, cp_y, x_mid, y_mid);
     }
     // const isTaxIntersection = firstPoint.x < tax.taxes[0].x && firstPoint.y > tax.taxes[0].y;
     // sctx.strokeStyle = isTaxIntersection ? "red" : "black";
-  
+
     // const gradient = sctx.createLinearGradient(tax.taxes[0].x, siblingHeight, floorHeight, 500);
     // gradient.addColorStop(0, "black");
     // gradient.addColorStop(0.6, "black");
     // gradient.addColorStop(0.8, "red");
     // gradient.addColorStop(1, "red");
-  
+
     // sctx.strokeStyle = pointXCoord < tax.taxes[0].x ? "black" : gradient;
     sctx.strokeStyle = "black";
     sctx.stroke();
     // sctx.save();
   };
 
-  drawDashedCrosshair = (y, x) => {
+  drawDashedCrosshair = (x, y) => {
+    const { FLOOR_Y, CEILING_Y, DISPLAY_WITDH } = this.game.ui
+
     sctx.lineDashOffset = 0;
     sctx.beginPath();
     sctx.setLineDash([15, 15]);
 
-    sctx.moveTo(this.x, 0);
-    sctx.lineTo(this.x, frmaeHeight);
+    sctx.moveTo(x, CEILING_Y);
+    sctx.lineTo(x, FLOOR_Y);
 
-    sctx.moveTo(0, this.y);
-    sctx.lineTo(sceneWidth, this.y);
+    sctx.moveTo(0, y);
+    sctx.lineTo(DISPLAY_WITDH, y);
 
     sctx.strokeStyle = this.colors.lineGray;
     sctx.stroke();
@@ -122,55 +112,30 @@ class Drawer {
   };
 }
 
-const drawer = new Drawer();
-
-const getScorePerSecondByY = (y) => {
-  const result = Math.abs(
-    Math.floor((100 * (y - minSceneHeight)) / minSceneMaxHeight)
-  );
-  return result;
-};
-
-const getYByScorePerSecond = (score) => {
-  const minSceneMaxHeight = floorHeight - ceilingHeight;
-  return Math.abs(Math.floor((minSceneMaxHeight * score) / 100 - floorHeight));
-};
-
-const drawHeightOfBall = (x, y) => {
-  drawer.setTextStyles(true);
-
-  let scorePerSecond = getScorePerSecondByY(y);
-  sctx.textAlign = "left";
-  sctx.fillText(scorePerSecond, x + 45, y - 10);
-
-  game.scorePerSecond = scorePerSecond;
-};
-
-scrn.addEventListener("click", () => {
-  switch (game.currentGameStep) {
-    case game.indexGameStep:
-      game.currentGameStep = game.playGameStep;
-      break;
-    case game.playGameStep:
-      ball.flap();
-      break;
-    // case state.finalScreenGameStep:
-      // state.currentGameStep = state.indexGameStep;
-      // point.speed = 0;
-      // point.y = 100;
-      // UI.score.currentGameStep = 0;
-      // break;
-  }
-});
-
 class Taxing {
+  game;
   taxes = [];
 
+  constructor(game) {
+    this.game = game;
+  }
+
+  getYByScorePerSecond = (score) => {
+    const { FLOOR_Y } = this.game.ui
+    const { MAX_AMPLITUDE_Y } = this.game.ball
+
+    return Math.abs(Math.floor((MAX_AMPLITUDE_Y * score) / 100 - FLOOR_Y));
+  };
+
   draw = () => {
+    const { ui, currentGameStep, playGameStep, framesAmount, TICK_SHIFT_X } = this.game;
+    const { DISPLAY_WITDH } = ui
+
     for (let tax of this.taxes) {
       sctx.fillStyle = "rgba(233, 170, 170, 0.3)";
-      const taxWidth = sceneWidth - tax.x;
-      const taxHeight = getYByScorePerSecond(0) - getYByScorePerSecond(tax.taxRate);
+      const taxWidth = DISPLAY_WITDH - tax.x;
+      const taxHeight =
+        this.getYByScorePerSecond(0) - this.getYByScorePerSecond(tax.taxRate);
       sctx.fillRect(tax.x, tax.y, taxWidth, taxHeight);
       if (tax.x < 900) {
         sctx.fillStyle = "red";
@@ -178,119 +143,165 @@ class Taxing {
       }
     }
 
-    if (game.currentGameStep != game.playGameStep) return;
+    if (currentGameStep != playGameStep) return;
 
-    if (game.framesAmount > 200 == 0 && this.taxes.length === 0) {
+    if (framesAmount > 200 == 0 && this.taxes.length === 0) {
       this.taxes.push({
-        x: sceneWidth,
-        y: getYByScorePerSecond(taxRate),
-        taxRate
+        x: DISPLAY_WITDH,
+        y: this.getYByScorePerSecond(taxRate),
+        taxRate,
       });
     }
-    this.taxes.forEach((tax) => tax.x -= dx);
+    this.taxes.forEach((tax) => (tax.x -= TICK_SHIFT_X));
   };
 }
 
-const taxing = new Taxing();
-
 class Ball {
-  X = BALL_X;
-  y = START_BALL_Y;
+  game;
+  X = 350;
+  y = 560;
+  RADIUS = 35;
   fallingSpeed = 0;
-  gravity = MIN_GRAVITY;
+  MIN_GRAVITY = 0.125;
+  gravity = this.MIN_GRAVITY;
+  coordsHistory = [];
+  MAX_TOP_Y;
+  MIN_BOTTOM_Y;
+  MAX_AMPLITUDE_Y;
+  
+  constructor(game) {
+    this.game = game;
+    this.MAX_TOP_Y = game.ui.CEILING_Y + this.RADIUS; // 135
+    this.MIN_BOTTOM_Y = game.ui.FLOOR_Y - this.RADIUS; // 565
+    this.MAX_AMPLITUDE_Y = this.MIN_BOTTOM_Y - this.MAX_TOP_Y; // 440
+  }
+
+  getScorePerSecondByY = (y) => {
+    const result = Math.abs(
+      Math.floor((100 * (y - this.MIN_BOTTOM_Y)) / this.MAX_AMPLITUDE_Y)
+    );
+    return result;
+  };
+
+  drawHeight = (x, y) => {
+    const { drawer } = this.game;
+
+    drawer.setTextStyles(true);
+
+    let scorePerSecond = this.getScorePerSecondByY(y);
+    sctx.textAlign = "left";
+    sctx.fillText(scorePerSecond, x + 45, y - 10);
+
+    this.game.scorePerSecond = scorePerSecond;
+  };
 
   draw = () => {
-    if (game.currentGameStep !== game.playGameStep) {
-      drawer.drawCircle(this.X, this.y, BALL_RADIUS);
+    const { drawer, currentGameStep, playGameStep, ui, TICK_SHIFT_X } = this.game;
+    const { FLOOR_Y, CEILING_Y } = ui
+
+    if (currentGameStep !== playGameStep) {
+      drawer.drawCircle(this.X, this.y, this.RADIUS);
       return;
     }
 
-    const bottomY = this.y + BALL_RADIUS;
-    const isIntersectedWithFloor = bottomY > floorHeight;
-    const topY = this.y - BALL_RADIUS;
+    const bottomY = this.y + this.RADIUS;
+    const isIntersectedWithFloor = bottomY > FLOOR_Y;
+    const topY = this.y - this.RADIUS;
 
-    this.gravity = MIN_GRAVITY * (1 + getScorePerSecondByY(this.y) / 100)
+    this.gravity = this.MIN_GRAVITY * (1 + this.getScorePerSecondByY(this.y) / 100);
     this.fallingSpeed += this.gravity;
 
     if (!isIntersectedWithFloor) {
-      const isNextYLowerThenFloor = bottomY + this.fallingSpeed > floorHeight;
-      const isNextYHigherThenCeiling = topY + this.fallingSpeed < ceilingHeight;
+      const isNextYLowerThenFloor = bottomY + this.fallingSpeed > FLOOR_Y;
+      const isNextYHigherThenCeiling = topY + this.fallingSpeed < CEILING_Y;
       if (isNextYLowerThenFloor) {
-        this.y = floorHeight - BALL_RADIUS;
+        this.y = FLOOR_Y - this.RADIUS;
       } else if (isNextYHigherThenCeiling) {
-        this.y = ceilingHeight + BALL_RADIUS;
+        this.y = CEILING_Y + this.RADIUS;
       } else {
         this.y += this.fallingSpeed;
       }
     }
 
     const start =
-      coordsHistory.length - 199 > 0 ? coordsHistory.length - 199 : 0;
-    const last200Coords = coordsHistory.slice(start);
-    coordsHistory = last200Coords.map((coords) => {
-      return { x: coords.x - dx, y: coords.y, date: coords.date };
+      this.coordsHistory.length - 199 > 0 ? this.coordsHistory.length - 199 : 0;
+    const last200Coords = this.coordsHistory.slice(start);
+    this.coordsHistory = last200Coords.map((coords) => {
+      return { x: coords.x - TICK_SHIFT_X, y: coords.y, date: coords.date };
     });
-    coordsHistory.push({ x: this.X, y: this.y, date: Date.now() });
-    drawer.drawDashedCrosshair();
+    this.coordsHistory.push({ x: this.X, y: this.y, date: Date.now() });
+    drawer.drawDashedCrosshair(this.X, this.y);
 
-    drawer.drawCircle(this.X, this.y, BALL_RADIUS);
-    drawer.drawLine(coordsHistory);
+    drawer.drawCircle(this.X, this.y, this.RADIUS);
+    drawer.drawLine(this.coordsHistory);
 
-    drawHeightOfBall(this.X, this.y);
-    this.checkIsTaxIntersection()
+    this.drawHeight(this.X, this.y);
+    this.checkIsTaxIntersection();
   };
 
   flap = () => {
+    const { scorePerSecond, startGameTime, results } = this.game;
+
     if (this.y < 0) return;
-    let thrust = 5.31 - Math.log1p(game.scorePerSecond / 1.5 || 1);
+    let thrust = 5.31 - Math.log1p(scorePerSecond / 1.5 || 1);
     this.fallingSpeed = -thrust;
-    if (game.startGameTime) game.tapsCounts += 1
-    game.results.flaps.push(Date.now());
+    if (startGameTime) this.game.tapsCounts += 1;
+    results.flaps.push(Date.now());
   };
 
   checkIsTaxIntersection = () => {
+    const { taxing } = this.game;
+
     const isTaxIntersection = this.X > taxing.taxes[0]?.x;
-    if (!isTaxIntersection) return
-    game.decreaseScoreTaxed()
-    game.increaseScoreProduced();
-    game.setLeftTimerValue()
-    game.setTaxPerSecond(taxing.taxes[0].taxRate)
-    if (!game.startGameTime) game.startGameTime = Date.now();
-    game.saveResults();
+    if (!isTaxIntersection) return;
+    this.game.decreaseScoreTaxed();
+    this.game.increaseScoreProduced();
+    this.game.setLeftTimerValue();
+    this.game.setTaxPerSecond(taxing.taxes[0].taxRate);
+    if (!this.game.startGameTime) this.game.startGameTime = Date.now();
+    this.game.saveResults();
   };
 }
 
-const ball = new Ball();
-
 class UI {
+  game;
   getReadyImage = new Image();
   gameOverImage = new Image();
   tapImages = [new Image(), new Image()];
-  frame = 0;
+  frameIndex = 0;
+  CEILING_Y = 100;
+  FLOOR_Y = 600;
+  DISPLAY_WITDH = 1000;
 
-  constructor() {
+  constructor(game) {
+    this.game = game;
+
     this.getReadyImage.src = "img/getReady.png";
     this.gameOverImage.src = "img/gameOver.png";
     this.tapImages[0].src = "img/tap1.png";
     this.tapImages[1].src = "img/tap2.png";
   }
-  
+
   clearScreen = () => {
     sctx.fillRect(0, 0, scrn.width, scrn.height);
-  }
+  };
 
   drawBorders = () => {
-    drawer.drawDashedLine(floorHeight, sceneX);
-    drawer.drawDashedLine(ceilingHeight, sceneX);
-  }
+    const { drawer, displayPositionX } = this.game;
+
+    drawer.drawHorizontalDashedLine(this.FLOOR_Y, -displayPositionX);
+    drawer.drawHorizontalDashedLine(this.CEILING_Y, -displayPositionX);
+  };
 
   draw = () => {
-    switch (game.currentGameStep) {
-      case game.indexGameStep:
-          this.drawGetReady()
+    const { currentGameStep, indexGameStep, finalScreenGameStep } = this.game;
+
+    switch (currentGameStep) {
+      case indexGameStep:
+        this.drawGetReady();
         break;
-      case game.finalScreenGameStep:
-          this.drawGameOver()
+      case finalScreenGameStep:
+        this.drawGameOver();
         break;
       default:
         this.drawScore();
@@ -303,8 +314,8 @@ class UI {
     const width = parseFloat(scrn.width - this.tapImages[0].width) / 2;
     const height = y + this.getReadyImage.height - this.tapImages[0].height;
     sctx.drawImage(this.getReadyImage, x, y);
-    sctx.drawImage(this.tapImages[this.frame], width, height); 
-  }
+    sctx.drawImage(this.tapImages[this.frameIndex], width, height);
+  };
 
   drawGameOver = () => {
     const x = parseFloat(scrn.width - this.gameOverImage.width) / 2;
@@ -314,55 +325,69 @@ class UI {
     sctx.fillStyle = "white";
     // sctx.fillRect(this.x - 150, this.y - 80, 400, 200);
     sctx.drawImage(this.gameOverImage, x, y);
-  }
+  };
 
   drawProducedScore = () => {
+    const { drawer, scoreProduced } = this.game;
+
     drawer.setTextStyles(false);
     sctx.textAlign = "right";
-    sctx.fillText(game.scoreProduced + "¢", scrn.width - 150, 40);
+    sctx.fillText(scoreProduced + "¢", scrn.width - 150, 40);
     sctx.textAlign = "left";
     sctx.fillStyle = drawer.colors.textGray;
     sctx.fillText("produced", scrn.width - 140, 40);
   };
 
   drawTaxed = () => {
+    const { drawer, scoreTaxed } = this.game;
+
     drawer.setTextStyles(false);
     sctx.textAlign = "right";
-    sctx.fillText(game.scoreTaxed + "¢", scrn.width - 150, 70);
+    sctx.fillText(scoreTaxed + "¢", scrn.width - 150, 70);
     sctx.fillStyle = drawer.colors.textGray;
     sctx.textAlign = "left";
     sctx.fillText("taxed", scrn.width - 140, 70);
   };
-  
+
   drawProfitScore = () => {
+    const { drawer, scoreProduced, scoreTaxed } = this.game;
+
     drawer.setTextStyles(false);
     sctx.textAlign = "right";
-    sctx.fillText(game.scoreProduced + game.scoreTaxed + "¢", 500, 40);
+    sctx.fillText(scoreProduced + scoreTaxed + "¢", 500, 40);
     sctx.textAlign = "left";
     sctx.fillStyle = drawer.colors.textGray;
     sctx.fillText("profit", 510, 40);
   };
 
   drawProfitPerSecond = () => {
+    const { drawer, scorePerSecond, taxPerSecond } = this.game;
+
     drawer.setTextStyles(false);
     sctx.textAlign = "right";
-    sctx.fillText(game.scorePerSecond - game.taxPerSecond + "¢", 500, 70);
+    sctx.fillText(scorePerSecond - taxPerSecond + "¢", 500, 70);
     sctx.textAlign = "left";
     sctx.fillStyle = drawer.colors.textGray;
     sctx.fillText("profit /s", 510, 70);
   };
 
   drawTimer = () => {
-    if (!game.leftTimerValue) game.setLeftTimerValue()
+    const { drawer, leftTimerValue } = this.game;
+
+    if (!leftTimerValue) this.game.setLeftTimerValue();
     drawer.setTextStyles(false);
     sctx.textAlign = "right";
-    sctx.fillText(game.leftTimerValue?.toLocaleTimeString("en-GB") + " /", 200, 70);
+    sctx.fillText(leftTimerValue?.toLocaleTimeString("en-GB") + " /", 200, 70);
     sctx.textAlign = "left";
-    const rightTimer = new Date(2000, 0, 0, 1, 0, 0).toLocaleTimeString("en-GB")
+    const rightTimer = new Date(2000, 0, 0, 1, 0, 0).toLocaleTimeString(
+      "en-GB"
+    );
     sctx.fillText(rightTimer, 208, 70);
   };
 
   drawScore = () => {
+    const { drawer } = this.game;
+
     drawer.setTextStyles();
     this.drawProducedScore();
     this.drawProfitScore();
@@ -372,55 +397,77 @@ class UI {
   };
 
   update = () => {
-    if (game.currentGameStep === game.finalScreenGameStep) {
-      const { results } = game;
-      clearInterval(game.interval);
-      results.produced = game.scoreProduced
-      results.taxed = game.scoreTaxed
-      results.profit = game.scoreProduced + game.scoreTaxed
-      results.flaps = results.flaps.map((flap) => {
-        const isBeforeStart = flap < game.startGameTime
-        const time = new Date(isBeforeStart ? game.startGameTime - flap : flap - game.startGameTime)
-        return `${isBeforeStart ? '-' : ''}${time.getSeconds()}.${time.getMilliseconds()}`
-      }).join(', ')
-      results.scoresBySeconds = results.scoresBySeconds.join(', ')
-      results.taxesBySeconds = results.taxesBySeconds.join(', ')
+    const {
+      currentGameStep,
+      finalScreenGameStep,
+      interval,
+      scoreProduced,
+      scoreTaxed,
+      startGameTime,
+      results,
+      duration,
+      playGameStep,
+      framesAmount
+    } = this.game;
+
+    if (currentGameStep === finalScreenGameStep) {
+      clearInterval(interval);
+      results.produced = scoreProduced;
+      results.taxed = scoreTaxed;
+      results.profit = scoreProduced + scoreTaxed;
+      results.flaps = results.flaps
+        .map((flap) => {
+          const isBeforeStart = flap < startGameTime;
+          const time = new Date(
+            isBeforeStart ? startGameTime - flap : flap - startGameTime
+          );
+          return `${
+            isBeforeStart ? "-" : ""
+          }${time.getSeconds()}.${time.getMilliseconds()}`;
+        })
+        .join(", ");
+      results.scoresBySeconds = results.scoresBySeconds.join(", ");
+      results.taxesBySeconds = results.taxesBySeconds.join(", ");
 
       const searchParams = new URLSearchParams(window.location.search);
       const id = searchParams.get("UUID");
       if (id) {
         dbFunctions.set(dbFunctions.ref(db, id), {
           ...results,
-        })
+        });
       }
 
       setTimeout(() => {
-        const gameScreen = document.getElementById("canvas")
-        const finalScreen = document.getElementById("final")
-        finalScreen.style.display = 'block'
+        const gameScreen = document.getElementById("canvas");
+        const finalScreen = document.getElementById("final");
+        finalScreen.style.display = "block";
         gameScreen.classList.add("notVisible");
         gameScreen.classList.remove("visible");
         finalScreen.classList.add("visible");
         finalScreen.classList.remove("notVisible");
-      }, 750)
+      }, 750);
     }
 
-    if (game.startGameTime && game.startGameTime + game.duration < Date.now()) {
-      game.currentGameStep = game.finalScreenGameStep
+    if (startGameTime && startGameTime + duration < Date.now()) {
+      this.game.currentGameStep = finalScreenGameStep;
     }
 
-    if (game.currentGameStep === game.playGameStep) return;
-    this.frame += game.framesAmount % 10 === 0 ? 1 : 0;
-    this.frame = this.frame % this.tapImages.length;
+    if (currentGameStep === playGameStep) return;
+    this.frameIndex += framesAmount % 10 === 0 ? 1 : 0;
+    this.frameIndex = this.frameIndex % this.tapImages.length;
   };
-};
-
-const ui = new UI();
+}
 
 class Game {
+  drawer;
+  taxing;
+  ball;
+  ui;
+
   duration = 0;
   interval = 0;
   framesAmount = 0;
+  displayPositionX = 0;
 
   currentGameStep = 0;
   indexGameStep = 0;
@@ -433,7 +480,9 @@ class Game {
   startGameTime = null;
   leftTimerValue = null;
   tapsCounts = 0;
-  
+  TICK_DURATION_MS = 20;
+  TICK_SHIFT_X = 2;
+
   results = {
     scoresBySeconds: [],
     flaps: [],
@@ -441,62 +490,77 @@ class Game {
     produced: 0,
     taxed: 0,
     profit: 0,
-  }
+  };
 
   constructor(duration) {
     this.duration = duration;
+
+    this.drawer = new Drawer(this);
+    this.taxing = new Taxing(this);
+    this.ui = new UI(this);
+    this.ball = new Ball(this);
+
+    scrn.addEventListener("click", () => {
+      switch (this.currentGameStep) {
+        case this.indexGameStep:
+          this.currentGameStep = this.playGameStep;
+          break;
+        case this.playGameStep:
+          this.ball.flap();
+          break;
+        // case state.finalScreenGameStep:
+        // state.currentGameStep = state.indexGameStep;
+        // point.speed = 0;
+        // point.y = 100;
+        // UI.score.currentGameStep = 0;
+        // break;
+      }
+    });
   }
 
   run = () => {
-    this.interval = setInterval(this.gameLoop, 20);
-  }
-  
+    this.interval = setInterval(this.gameLoop, this.TICK_DURATION_MS);
+  };
+
   gameLoop = () => {
     this.draw();
     this.update();
     this.framesAmount++;
-  }
+  };
 
   draw = () => {
     sctx.fillStyle = "white";
-    ui.clearScreen();
-    taxing.draw();
-    ui.drawBorders();
-  
-    ball.draw();
-    ui.draw();
-  }
+    this.ui.clearScreen();
+    this.taxing.draw();
+    this.ui.drawBorders();
+
+    this.ball.draw();
+    this.ui.draw();
+  };
 
   update = () => {
-    ui.update();
+    this.ui.update();
     if (this.currentGameStep !== this.playGameStep) return;
-    sceneX -= dx;
-  }
+    this.displayPositionX -= this.TICK_SHIFT_X;
+  };
 
   increaseScoreProduced = throttle(
     () => (this.scoreProduced += this.scorePerSecond),
     1000
   );
-  decreaseScoreTaxed = throttle(
-    () => (this.scoreTaxed -= taxRate),
-    1000
-  );
-  setTaxPerSecond = throttle(
-    (score) => (this.taxPerSecond = score),
-    1000
-  );
-  setLeftTimerValue = throttle(
-    () => {
-      const secondsFromStart = Math.floor(Date.now() - this.startGameTime) / (1000)
-      this.leftTimerValue = this.startGameTime ? new Date(new Date(0, 0, 0, 0, secondsFromStart, 0)) : new Date(0, 0, 0, 0, 0, 0)
-    },
-    1000
-  );
-  
+  decreaseScoreTaxed = throttle(() => (this.scoreTaxed -= taxRate), 1000);
+  setTaxPerSecond = throttle((score) => (this.taxPerSecond = score), 1000);
+  setLeftTimerValue = throttle(() => {
+    const secondsFromStart = Math.floor(Date.now() - this.startGameTime) / 1000;
+    this.leftTimerValue = this.startGameTime
+      ? new Date(new Date(0, 0, 0, 0, secondsFromStart, 0))
+      : new Date(0, 0, 0, 0, 0, 0);
+  }, 1000);
+
   saveResults = throttle(() => {
     this.results.scoresBySeconds.push(this.scorePerSecond);
     this.results.taxesBySeconds.push(-this.taxPerSecond);
-  }, 1000)
+  }, 1000);
 }
 
 const game = new Game(GAME_DURATION_MS);
