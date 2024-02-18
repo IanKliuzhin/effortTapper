@@ -160,14 +160,8 @@ class Taxing {
   };
 
   draw = () => {
-    const {
-      ui,
-      drawer,
-      currentGameStep,
-      playGameStep,
-      framesAmount,
-      TICK_SHIFT_X,
-    } = this.game;
+    const { ui, drawer, currentStage, STAGES, framesAmount, TICK_SHIFT_X } =
+      this.game;
     const { DISPLAY_WITDH } = ui;
 
     for (let tax of this.taxes) {
@@ -186,7 +180,7 @@ class Taxing {
       }
     }
 
-    if (currentGameStep != playGameStep) return;
+    if (currentStage !== STAGES.play) return;
 
     if (framesAmount > 200 == 0 && this.taxes.length === 0) {
       this.taxes.push({
@@ -227,11 +221,10 @@ class Ball {
   };
 
   draw = () => {
-    const { drawer, currentGameStep, playGameStep, ui, TICK_SHIFT_X } =
-      this.game;
+    const { drawer, ui, currentStage, STAGES, TICK_SHIFT_X } = this.game;
     const { FLOOR_Y, CEILING_Y } = ui;
 
-    if (currentGameStep !== playGameStep) {
+    if (currentStage !== STAGES.play) {
       drawer.drawCircle(this.X, this.y, this.RADIUS, "ballColor");
       return;
     }
@@ -345,13 +338,13 @@ class UI {
   };
 
   draw = () => {
-    const { currentGameStep, indexGameStep, finalScreenGameStep } = this.game;
+    const { currentStage, STAGES } = this.game;
 
-    switch (currentGameStep) {
-      case indexGameStep:
+    switch (currentStage) {
+      case STAGES.getReady:
         this.drawGetReady();
         break;
-      case finalScreenGameStep:
+      case STAGES.gameOver:
         this.drawGameOver();
         break;
       default:
@@ -493,19 +486,18 @@ class UI {
 
   update = () => {
     const {
-      currentGameStep,
-      finalScreenGameStep,
+      currentStage,
+      STAGES,
       interval,
       scoreProduced,
       scoreTaxed,
       startGameTime,
       results,
       duration,
-      playGameStep,
       framesAmount,
     } = this.game;
 
-    if (currentGameStep === finalScreenGameStep) {
+    if (currentStage === STAGES.gameOver) {
       clearInterval(interval);
       results.produced = scoreProduced;
       results.taxed = scoreTaxed;
@@ -544,10 +536,10 @@ class UI {
     }
 
     if (startGameTime && startGameTime + duration < Date.now()) {
-      this.game.currentGameStep = finalScreenGameStep;
+      this.game.currentStage = STAGES.gameOver;
     }
 
-    if (currentGameStep === playGameStep) return;
+    if (currentStage === STAGES.play) return;
     this.frameIndex += framesAmount % 10 === 0 ? 1 : 0;
     this.frameIndex = this.frameIndex % this.tapImages.length;
   };
@@ -561,15 +553,18 @@ class Game {
 
   scrn;
 
+  STAGES = {
+    getReady: 0,
+    play: 1,
+    gameOver: 2,
+  };
+
   duration = 0;
   interval = 0;
   framesAmount = 0;
   displayPositionX = 0;
 
-  currentGameStep = 0;
-  indexGameStep = 0;
-  playGameStep = 1;
-  finalScreenGameStep = 2;
+  currentStage;
   scorePerSecond = 0;
   scoreProduced = 0;
   scoreTaxed = 0;
@@ -591,6 +586,7 @@ class Game {
 
   constructor(scrn, duration) {
     this.scrn = scrn;
+    this.scrn.tabIndex = 1;
 
     this.duration = duration;
 
@@ -599,13 +595,14 @@ class Game {
     this.ui = new UI(this);
     this.ball = new Ball(this);
 
-    this.scrn.tabIndex = 1;
+    this.currentStage = this.STAGES.getReady;
+
     this.scrn.addEventListener("click", () => {
-      switch (this.currentGameStep) {
-        case this.indexGameStep:
-          this.currentGameStep = this.playGameStep;
+      switch (this.currentStage) {
+        case this.STAGES.getReady:
+          this.currentStage = this.STAGES.play;
           break;
-        case this.playGameStep:
+        case this.STAGES.play:
           this.ball.flap();
           break;
         // case state.finalScreenGameStep:
@@ -639,8 +636,9 @@ class Game {
 
   update = () => {
     this.ui.update();
-    if (this.currentGameStep !== this.playGameStep) return;
-    this.displayPositionX -= this.TICK_SHIFT_X;
+    if (this.currentStage === this.STAGES.play) {
+      this.displayPositionX -= this.TICK_SHIFT_X;
+    }
   };
 
   increaseScoreProduced = throttle(
