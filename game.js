@@ -201,7 +201,7 @@ class Ball {
   fallingSpeed = 0;
   MIN_GRAVITY = 0.125;
   gravity = this.MIN_GRAVITY;
-  coordsHistory = [];
+  coordYHistory = [];
   MAX_TOP_Y;
   MIN_BOTTOM_Y;
   MAX_AMPLITUDE_Y;
@@ -221,7 +221,8 @@ class Ball {
   };
 
   draw = () => {
-    const { drawer, ui, currentStage, STAGES, TICK_SHIFT_X } = this.game;
+    const { drawer, ui, currentStage, STAGES, TICK_SHIFT_X } =
+      this.game;
     const { FLOOR_Y, CEILING_Y } = ui;
 
     if (currentStage !== STAGES.play) {
@@ -230,38 +231,37 @@ class Ball {
     }
 
     const bottomY = this.y + this.RADIUS;
-    const isIntersectedWithFloor = bottomY > FLOOR_Y;
     const topY = this.y - this.RADIUS;
 
     this.gravity =
       this.MIN_GRAVITY * (1 + (1.23 * this.getScorePerSecondByY(this.y)) / 100);
     this.fallingSpeed += this.gravity;
 
-    if (!isIntersectedWithFloor) {
-      const isNextYLowerThenFloor = bottomY + this.fallingSpeed > FLOOR_Y;
-      const isNextYHigherThenCeiling = topY + this.fallingSpeed < CEILING_Y;
-      if (isNextYLowerThenFloor) {
-        this.y = FLOOR_Y - this.RADIUS;
-      } else if (isNextYHigherThenCeiling) {
-        this.y = CEILING_Y + this.RADIUS;
-      } else {
-        this.y += this.fallingSpeed;
-      }
+    const isNextYLowerThenFloor = bottomY + this.fallingSpeed > FLOOR_Y;
+    const isNextYHigherThenCeiling = topY + this.fallingSpeed < CEILING_Y;
+    if (isNextYLowerThenFloor) {
+      this.y = FLOOR_Y - this.RADIUS;
+    } else if (isNextYHigherThenCeiling) {
+      this.y = CEILING_Y + this.RADIUS;
+    } else {
+      this.y += this.fallingSpeed;
     }
 
-    const start =
-      this.coordsHistory.length - 199 > 0 ? this.coordsHistory.length - 199 : 0;
-    const last200Coords = this.coordsHistory.slice(start);
-    this.coordsHistory = last200Coords.map((coords) => {
-      return { x: coords.x - TICK_SHIFT_X, y: coords.y, date: coords.date };
-    });
-    this.coordsHistory.push({ x: this.X, y: this.y, date: Date.now() });
     drawer.drawDashedCrosshair(this.X, this.y, "lineGray");
 
     drawer.drawCircle(this.X, this.y, this.RADIUS, "ballColor");
 
-    if (this.coordsHistory.length > 1) {
-      drawer.drawCurvedLine(this.coordsHistory, 2);
+    this.coordYHistory.push(this.y);
+    if (this.coordYHistory.length > 1) {
+      drawer.drawCurvedLine(
+        this.coordYHistory
+          .slice(-200)
+          .map((y, index, arr) => ({
+            x: this.X - TICK_SHIFT_X * (arr.length - index),
+            y,
+          })),
+        2
+      );
     }
 
     let scorePerSecond = this.getScorePerSecondByY(this.y);
@@ -283,7 +283,6 @@ class Ball {
     if (this.y < 0) return;
     let thrust = 5.31 - Math.log1p(scorePerSecond / 1.5 || 1);
     this.fallingSpeed = -thrust;
-    if (startGameTime) this.game.tapsCounts += 1;
     results.flaps.push(Date.now());
   };
 
@@ -321,17 +320,17 @@ class UI {
   }
 
   drawBorders = () => {
-    const { drawer, displayPositionX } = this.game;
+    const { drawer, framesAmount, TICK_SHIFT_X } = this.game;
 
     drawer.drawHorizontalDashedLine(
       this.FLOOR_Y,
-      -displayPositionX,
+      framesAmount * TICK_SHIFT_X,
       "lineGray",
       1
     );
     drawer.drawHorizontalDashedLine(
       this.CEILING_Y,
-      -displayPositionX,
+      framesAmount * TICK_SHIFT_X,
       "lineGray",
       1
     );
@@ -562,7 +561,6 @@ class Game {
   duration = 0;
   interval = 0;
   framesAmount = 0;
-  displayPositionX = 0;
 
   currentStage;
   scorePerSecond = 0;
@@ -571,7 +569,6 @@ class Game {
   taxPerSecond = 0;
   startGameTime = null;
   leftTimerValue = null;
-  tapsCounts = 0;
   TICK_DURATION_MS = 20;
   TICK_SHIFT_X = 2;
 
@@ -636,9 +633,6 @@ class Game {
 
   update = () => {
     this.ui.update();
-    if (this.currentStage === this.STAGES.play) {
-      this.displayPositionX -= this.TICK_SHIFT_X;
-    }
   };
 
   increaseScoreProduced = throttle(
