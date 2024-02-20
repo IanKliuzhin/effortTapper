@@ -544,7 +544,9 @@ class Game {
 
   results = {
     scoresBySeconds: [],
-    flaps: [],
+    flapsBySeconds: [],
+    flapsByScorePerSecond: [],
+    flapsByTaxPerSecond: [],
     taxesBySeconds: [],
     produced: 0,
     taxed: 0,
@@ -574,7 +576,9 @@ class Game {
           break;
         case this.STAGES.play:
           this.ball.flap();
-          this.results.flaps.push(this.framesAmount);
+          this.results.flapsBySeconds.push(this.framesAmount);
+          this.results.flapsByScorePerSecond.push(this.scorePerSecond);
+          this.results.flapsByTaxPerSecond.push(this.taxing.currentRate);
           break;
         // case state.finalScreenGameStep:
         // state.currentGameStep = state.indexGameStep;
@@ -640,7 +644,7 @@ class Game {
     results.taxed = this.scoreTaxed;
     results.profit = this.scoreProduced + this.scoreTaxed;
 
-    results.flaps = results.flaps
+    results.flapsBySeconds = results.flapsBySeconds
       .map((flapFrame) =>
         (
           (flapFrame * this.FRAME_DURATION_MS) / 1000 -
@@ -650,6 +654,8 @@ class Game {
       .join(", ");
     results.scoresBySeconds = results.scoresBySeconds.join(", ");
     results.taxesBySeconds = results.taxesBySeconds.join(", ");
+    results.flapsByScorePerSecond = results.flapsByScorePerSecond.join(", ");
+    results.flapsByTaxPerSecond = results.flapsByTaxPerSecond.join(", ");
 
     const searchParams = new URLSearchParams(window.location.search);
     const id = searchParams.get("UUID");
