@@ -658,7 +658,7 @@ class Game {
     results.flapsByTaxPerSecond = results.flapsByTaxPerSecond.join(", ");
 
     const searchParams = new URLSearchParams(window.location.search);
-    const id = searchParams.get("UUID");
+    const id = searchParams.get("id");
     if (id) {
       dbFunctions.set(dbFunctions.ref(db, id), {
         ...results,
