@@ -59,17 +59,6 @@ h4 {
     border: 2px solid black;
     display: block;
     margin: auto;
-}
-
-#uniqCode {
-    width: 150px;
-    padding: 10px 20px;
-    margin: 0 10px;
-    border-radius: 5px;
-    border: 2px solid black;
-}
-
-input {
     cursor: pointer;
 }
 
