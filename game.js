@@ -19,8 +19,13 @@ class Drawer {
     taxRect: "rgba(233, 170, 170, 0.3)",
     taxRate: "red",
   };
-  BIG_FONT = "700 28px courier";
-  SMALL_FONT = "400 22px Tahoma";
+
+  FONTS = {
+    courier_28_bold: "700 28px courier",
+    tahoma_17: "400 17px Tahoma",
+    tahoma_28_bold: "700 28px Tahoma"
+  }
+
   DASH_LENGTH = 15;
 
   constructor(game) {
@@ -112,8 +117,8 @@ class Drawer {
     this.sctx.fillRect(x, y, width, height);
   };
 
-  drawText = ({ text, x, y, color, isBig = false, align = "left" }) => {
-    this.sctx.font = isBig ? this.BIG_FONT : this.SMALL_FONT;
+  drawText = ({ text, x, y, color, font = "tahoma_17", align = "left" }) => {
+    this.sctx.font = this.FONTS[font];
     this.sctx.setLineDash([]);
 
     if (align) {
@@ -281,7 +286,7 @@ class Ball {
       text: this.game.scorePerSecond,
       x: this.X + 45,
       y: this.y - 10,
-      isBig: true,
+      font: "courier_28_bold",
       align: "left",
     });
   };
@@ -404,7 +409,6 @@ class UI {
       text: `${scoreProduced}¢`,
       x: scrn.width - 150,
       y: 40,
-      isBig: false,
       align: "right",
     });
     drawer.drawText({
@@ -423,7 +427,6 @@ class UI {
       text: `${scoreTaxed}¢`,
       x: scrn.width - 150,
       y: 70,
-      isBig: false,
       align: "right",
     });
     drawer.drawText({
@@ -442,7 +445,6 @@ class UI {
       text: `${scoreProduced + scoreTaxed}¢`,
       x: 500,
       y: 40,
-      isBig: false,
       align: "right",
     });
     drawer.drawText({
@@ -465,7 +467,6 @@ class UI {
       text: `${scorePerSecond - currentRate}¢`,
       x: 500,
       y: 70,
-      isBig: false,
       align: "right",
     });
     drawer.drawText({
@@ -496,6 +497,7 @@ class UI {
       ).padStart(2, "00")} / ${this.timerDuration}`,
       x: 200,
       y: 70,
+      font: "tahoma_28_bold",
       align: "right",
     });
   };
