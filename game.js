@@ -41,6 +41,17 @@ class Drawer {
     this.sctx.fillRect(0, 0, scrn.width, scrn.height);
   };
 
+  drawVerticalLine = (x, y1, y2, lineWidth, color) => {
+    this.sctx.strokeStyle = this.COLORS[color];
+    this.sctx.setLineDash([]);
+    this.sctx.lineWidth = lineWidth;
+
+    this.sctx.beginPath();
+    this.sctx.moveTo(x, y1);
+    this.sctx.lineTo(x, y2);
+    this.sctx.stroke();
+  };
+
   drawCircle = (x, y, radius, color) => {
     this.sctx.fillStyle = this.COLORS[color];
     this.sctx.beginPath();
@@ -508,6 +519,31 @@ class UI {
     this.tapImageIndex += framesAmount % 10 === 0 ? 1 : 0;
     this.tapImageIndex = this.tapImageIndex % this.tapImages.length;
   };
+
+  drawFinish = (framesLeft) => {
+    const {
+      scrn,
+      ball: { X: ballX },
+      FRAME_SHIFT_X,
+    } = this.game;
+
+    const lineX = ballX + framesLeft * FRAME_SHIFT_X + FRAME_SHIFT_X / 2;
+
+    this.game.drawer.drawVerticalLine(
+      lineX,
+      this.CEILING_Y + 10,
+      scrn.height,
+      3.5,
+      "black"
+    );
+    this.game.drawer.drawText({
+      text: "Finish",
+      x: lineX - 45,
+      y: this.CEILING_Y,
+      font: "tahoma_28_bold",
+      color: "black",
+    });
+  };
 }
 
 class Game {
@@ -527,6 +563,8 @@ class Game {
 
   durationInSeconds;
   timerStartDelay;
+
+  durationInFrames;
 
   drawInterval;
 
@@ -561,6 +599,7 @@ class Game {
     this.scrn.tabIndex = 1;
 
     this.durationInSeconds = durationInSeconds;
+    this.durationInFrames = (timerStartDelay + durationInSeconds) * 1000 / this.FRAME_DURATION_MS;
     this.timerStartDelay = timerStartDelay;
 
     this.drawer = new Drawer(this);
@@ -605,13 +644,21 @@ class Game {
     this.framesAmount++;
 
     if (this.currentStage === this.STAGES.getReady) this.ui.updateTapImage();
-    if (this.timerSecondsPassed >= this.durationInSeconds) this.endGame();
 
-    if (
-      this.currentStage === this.STAGES.play &&
-      this.framesAmount % (1000 / this.FRAME_DURATION_MS) === 0
-    ) {
-      this.update();
+    if (this.currentStage === this.STAGES.play) {
+      const framesLeft = this.durationInFrames - this.framesAmount;
+      
+      if (this.ball.X + framesLeft * this.FRAME_SHIFT_X <= this.ui.DISPLAY_WIDTH) {
+        this.ui.drawFinish(framesLeft);
+      }
+      
+      if (this.timerSecondsPassed >= this.durationInSeconds) this.endGame();
+
+      if (
+        this.framesAmount % (1000 / this.FRAME_DURATION_MS) === 0
+      ) {
+        this.update();
+      }
     }
   };
 
