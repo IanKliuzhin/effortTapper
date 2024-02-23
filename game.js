@@ -183,7 +183,7 @@ class Taxing {
       drawer,
       currentStage,
       STAGES,
-      framesAmount,
+      framesPassed,
       FRAME_SHIFT_X,
     } = this.game;
     const { DISPLAY_WIDTH, FLOOR_Y } = ui;
@@ -192,10 +192,10 @@ class Taxing {
     if (currentStage === STAGES.play) {
       this.currentRate = 0;
       for (let { rate, framesTillIn, framesTillOut } of this.taxes) {
-        if (framesAmount > framesTillIn && framesAmount < framesTillOut) {
+        if (framesPassed > framesTillIn && framesPassed < framesTillOut) {
           const startX =
-            (framesTillIn - framesAmount) * FRAME_SHIFT_X + DISPLAY_WIDTH;
-          let endX = (framesTillOut - framesAmount) * FRAME_SHIFT_X;
+            (framesTillIn - framesPassed) * FRAME_SHIFT_X + DISPLAY_WIDTH;
+          let endX = (framesTillOut - framesPassed) * FRAME_SHIFT_X;
           if (endX > DISPLAY_WIDTH) endX = DISPLAY_WIDTH;
 
           if (startX <= ballX && endX >= ballX) {
@@ -356,17 +356,17 @@ class UI {
   }
 
   drawBorders = () => {
-    const { drawer, framesAmount, FRAME_SHIFT_X } = this.game;
+    const { drawer, framesPassed, FRAME_SHIFT_X } = this.game;
 
     drawer.drawHorizontalDashedLine(
       this.FLOOR_Y,
-      framesAmount * FRAME_SHIFT_X,
+      framesPassed * FRAME_SHIFT_X,
       "lineGray",
       1
     );
     drawer.drawHorizontalDashedLine(
       this.CEILING_Y,
-      framesAmount * FRAME_SHIFT_X,
+      framesPassed * FRAME_SHIFT_X,
       "lineGray",
       1
     );
@@ -514,9 +514,9 @@ class UI {
   };
 
   updateTapImage = () => {
-    const { framesAmount } = this.game;
+    const { framesPassed } = this.game;
 
-    this.tapImageIndex += framesAmount % 10 === 0 ? 1 : 0;
+    this.tapImageIndex += framesPassed % 10 === 0 ? 1 : 0;
     this.tapImageIndex = this.tapImageIndex % this.tapImages.length;
   };
 
@@ -568,7 +568,7 @@ class Game {
 
   drawInterval;
 
-  framesAmount = 0;
+  framesPassed = 0;
   secondsPassed = 0;
   timerSecondsPassed = 0;
 
@@ -613,11 +613,11 @@ class Game {
       switch (this.currentStage) {
         case this.STAGES.getReady:
           this.currentStage = this.STAGES.play;
-          this.framesAmount = 0;
+          this.framesPassed = 0;
           break;
         case this.STAGES.play:
           this.ball.flap();
-          this.results.flapsBySeconds.push(this.framesAmount);
+          this.results.flapsBySeconds.push(this.framesPassed);
           this.results.flapsByScorePerSecond.push(this.scorePerSecond);
           this.results.flapsByTaxPerSecond.push(this.taxing.currentRate);
           break;
@@ -641,12 +641,12 @@ class Game {
     this.ui.drawBorders();
     this.ball.draw();
     this.ui.draw();
-    this.framesAmount++;
+    this.framesPassed++;
 
     if (this.currentStage === this.STAGES.getReady) this.ui.updateTapImage();
 
     if (this.currentStage === this.STAGES.play) {
-      const framesLeft = this.durationInFrames - this.framesAmount;
+      const framesLeft = this.durationInFrames - this.framesPassed;
       
       if (this.ball.X + framesLeft * this.FRAME_SHIFT_X <= this.ui.DISPLAY_WIDTH) {
         this.ui.drawFinish(framesLeft);
@@ -655,7 +655,7 @@ class Game {
       if (this.timerSecondsPassed >= this.durationInSeconds) this.endGame();
 
       if (
-        this.framesAmount % (1000 / this.FRAME_DURATION_MS) === 0
+        this.framesPassed % (1000 / this.FRAME_DURATION_MS) === 0
       ) {
         this.update();
       }
